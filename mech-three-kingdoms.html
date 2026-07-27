@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>龙甲：三国战域</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;600;700;900&display=swap');
+
+    :root {
+      --paper: #e8d7ad;
+      --ink: #1c2024;
+      --jade: #39d8cb;
+      --gold: #f4c46d;
+      --red: #ec5a49;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      color: var(--paper);
+      background: #090d12;
+      font-family: "Noto Serif SC", "Songti SC", serif;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      opacity: .24;
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    .page {
+      width: min(1440px, 100%);
+      margin: 0 auto;
+      padding: 20px clamp(14px, 3vw, 42px) 26px;
+    }
+
+    header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 0 0 15px;
+    }
+
+    .eyebrow {
+      color: var(--jade);
+      font: 700 11px/1.2 ui-monospace, monospace;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 3px 0 0;
+      color: #f6e5bd;
+      font: 400 clamp(31px, 4vw, 55px)/.9 "Ma Shan Zheng", "Kaiti SC", serif;
+      letter-spacing: .08em;
+      text-shadow: 0 0 24px rgba(244,196,109,.25);
+    }
+    .mission {
+      max-width: 450px;
+      margin: 0;
+      color: #aeb5b8;
+      font-size: 13px;
+      line-height: 1.7;
+      text-align: right;
+    }
+
+    .game-frame {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(232,215,173,.42);
+      background: #101920;
+      box-shadow: 0 25px 60px rgba(0,0,0,.45), inset 0 0 0 5px rgba(244,196,109,.04);
+    }
+    .game-frame::before,
+    .game-frame::after {
+      content: "";
+      position: absolute;
+      z-index: 3;
+      width: 28px;
+      height: 28px;
+      pointer-events: none;
+      border-color: var(--gold);
+      border-style: solid;
+      opacity: .85;
+    }
+    .game-frame::before { left: 9px; top: 9px; border-width: 1px 0 0 1px; }
+    .game-frame::after { right: 9px; bottom: 9px; border-width: 0 1px 1px 0; }
+    canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #101920; }
+
+    .hud {
+      position: absolute;
+      z-index: 4;
+      top: 18px;
+      left: 22px;
+      right: 22px;
+      display: flex;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+    .pilot, .score {
+      padding: 8px 12px;
+      border: 1px solid rgba(232,215,173,.24);
+      background: rgba(8,13,18,.69);
+      backdrop-filter: blur(4px);
+    }
+    .pilot-title { color: var(--gold); font-weight: 900; font-size: 14px; letter-spacing: .13em; }
+    .pilot-sub { color: #a9b5ba; font-size: 10px; letter-spacing: .08em; margin-top: 3px; }
+    .bar { width: clamp(155px, 21vw, 265px); height: 8px; margin-top: 7px; background: rgba(241,237,220,.14); transform: skewX(-18deg); }
+    #hp-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #41d3cb, #eaf3dc); box-shadow: 0 0 13px #41d3cb; transition: width .16s; }
+    .score { text-align: right; }
+    .score-label { color: #a8b1b6; font-size: 10px; letter-spacing: .12em; }
+    #enemy-count { color: var(--red); font-size: 21px; font-weight: 900; line-height: 1; }
+    .growth-status {
+      position: absolute;
+      z-index: 4;
+      top: 18px;
+      left: 50%;
+      min-width: 180px;
+      padding: 8px 12px;
+      transform: translateX(-50%);
+      border: 1px solid rgba(83,226,212,.33);
+      background: rgba(8,13,18,.69);
+      text-align: center;
+      pointer-events: none;
+    }
+    .growth-status .growth-label { color: var(--jade); font-size: 11px; font-weight: 900; letter-spacing: .12em; }
+    .growth-status .bar { width: 156px; margin: 6px auto 0; }
+    #growth-fill { height: 100%; width: 0; background: linear-gradient(90deg, #f4c46d, #55e2d4); box-shadow: 0 0 12px #41d3cb; transition: width .16s; }
+    #growth-readout, #boost-readout { color: #b7c7c3; font: 10px ui-monospace, monospace; }
+    .boost-line { display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 5px; }
+    .boost-line .bar { width: 65px; height: 5px; margin: 0; }
+    #boost-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #ef6e50, #f4c46d); transition: width .12s; }
+
+    .event-log {
+      position: absolute;
+      z-index: 4;
+      left: 22px;
+      bottom: 84px;
+      width: min(440px, 68%);
+      min-height: 22px;
+      color: #edf0db;
+      font-size: clamp(10px, 1.3vw, 13px);
+      letter-spacing: .05em;
+      text-shadow: 0 1px 4px #000;
+      pointer-events: none;
+    }
+    .event-log span { color: var(--gold); }
+
+    .mouse-controls {
+      position: absolute;
+      z-index: 5;
+      right: 18px;
+      bottom: 17px;
+      display: flex;
+      align-items: end;
+      gap: 10px;
+      padding: 9px;
+      border: 1px solid rgba(232,215,173,.28);
+      background: rgba(8,13,18,.78);
+      box-shadow: 0 10px 30px rgba(0,0,0,.3);
+      backdrop-filter: blur(5px);
+      user-select: none;
+      touch-action: none;
+    }
+    .mouse-controls-label { color: #99aaa9; font: 700 9px ui-monospace, monospace; letter-spacing: .12em; }
+    .direction-pad { display: grid; grid-template-columns: repeat(3, 34px); gap: 4px; }
+    .virtual-actions { display: grid; grid-template-columns: repeat(6, 38px); gap: 4px; }
+    .virtual-key {
+      min-height: 32px;
+      padding: 2px;
+      border: 1px solid rgba(232,215,173,.33);
+      color: #e8d7ad;
+      background: rgba(255,255,255,.055);
+      font: 800 14px/1 ui-monospace, monospace;
+      cursor: pointer;
+    }
+    .virtual-key small { display: block; margin-top: 2px; color: #8ba2a5; font: 8px/1 "Noto Serif SC", serif; }
+    .virtual-key:hover, .virtual-key:active { border-color: var(--jade); color: #fff; background: rgba(57,216,203,.2); box-shadow: 0 0 13px rgba(57,216,203,.24); }
+    .virtual-key.empty { visibility: hidden; pointer-events: none; }
+
+    .result {
+      position: absolute;
+      inset: 0;
+      z-index: 7;
+      display: grid;
+      place-items: center;
+      background: rgba(4,8,11,.72);
+      opacity: 0;
+      visibility: hidden;
+      transition: .25s;
+    }
+    .result.show { opacity: 1; visibility: visible; }
+    .result-card { padding: 26px 40px; text-align: center; border: 1px solid var(--gold); background: rgba(18,25,29,.95); box-shadow: 0 0 55px rgba(244,196,109,.16); }
+    #result-title { margin: 0; color: var(--gold); font: 400 clamp(40px, 6vw, 76px)/1 "Ma Shan Zheng", serif; }
+    #result-text { margin: 11px 0 0; color: #cdd0bd; font-size: 14px; }
+    .restart { margin-top: 18px; color: var(--jade); font: 700 12px ui-monospace, monospace; letter-spacing: .12em; }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1.1fr 1.9fr;
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .control-note, .skills { border-top: 1px solid rgba(232,215,173,.25); padding-top: 12px; }
+    .control-note { color: #aeb5b8; font-size: 12px; line-height: 1.8; }
+    .control-note strong { color: var(--paper); }
+    .skills { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+    .skill { position: relative; min-height: 62px; padding: 9px 8px 7px 38px; border: 1px solid rgba(232,215,173,.2); background: rgba(255,255,255,.025); }
+    .key { position: absolute; left: 8px; top: 9px; color: var(--ink); background: var(--gold); padding: 1px 6px; font: 900 15px ui-monospace, monospace; }
+    .skill b { display: block; color: #e7e5cc; font-size: 13px; letter-spacing: .05em; }
+    .skill small { display: block; margin-top: 4px; color: #849195; font-size: 10px; }
+    .skill.active { border-color: var(--jade); background: rgba(57,216,203,.1); }
+    .skill.cooldown { opacity: .46; }
+    footer { margin-top: 11px; color: #687579; text-align: right; font-size: 10px; letter-spacing: .1em; }
+
+    @media (max-width: 680px) {
+      .page { padding-top: 14px; }
+      header { align-items: start; }
+      .mission { display: none; }
+      .hud { top: 11px; left: 13px; right: 13px; }
+      .pilot, .score { padding: 5px 7px; }
+      .pilot-sub { display: none; }
+      .bar { margin-top: 4px; width: 120px; height: 6px; }
+      .controls { grid-template-columns: 1fr; }
+      .skills { order: -1; }
+      .skill { min-height: 52px; padding: 7px 4px 5px 30px; }
+      .key { left: 5px; top: 7px; padding: 0 5px; font-size: 13px; }
+      .skill b { font-size: 11px; }
+      .skill small { display: none; }
+      .mouse-controls { right: 9px; bottom: 52px; gap: 5px; padding: 6px; transform: scale(.72); transform-origin: bottom right; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div>
+        <div class="eyebrow">ZHAO YUN // MECHA COMBAT SIMULATOR</div>
+        <h1>龙甲 · 长坂战域</h1>
+      </div>
+      <p class="mission">公元 219 年，三方大本营对峙。驾驶「白龙」人形机甲，在魏、吴敌机的自主追击中成长。</p>
+    </header>
+
+    <section class="game-frame" aria-label="龙甲三国机甲游戏">
+      <canvas id="game" width="1280" height="720"></canvas>
+      <div class="hud">
+        <div class="pilot">
+          <div class="pilot-title">蜀 · 赵云「白龙」</div>
+          <div class="pilot-sub">神经同步率 / 100%　·　成长型人形机甲</div>
+          <div class="bar"><div id="hp-fill"></div></div>
+        </div>
+        <div class="score"><div class="score-label">剩余敌机</div><div id="enemy-count">05</div></div>
+      </div>
+      <div class="growth-status"><div class="growth-label">攻击目标</div><div class="bar"><div id="growth-fill"></div></div><div id="growth-readout">正在分配目标…</div><div class="boost-line"><span id="boost-readout">推进 20.0s</span><div class="bar"><div id="boost-fill"></div></div></div></div>
+      <div class="event-log" id="event-log">战域接入完成。<span>方向键</span>移动，准备迎敌。</div>
+      <div class="mouse-controls" aria-label="鼠标操作控制台">
+        <div>
+          <div class="mouse-controls-label">移动</div>
+          <div class="direction-pad">
+            <button class="virtual-key empty" aria-hidden="true"></button><button class="virtual-key" data-key="ArrowUp" aria-label="向上移动">↑</button><button class="virtual-key empty" aria-hidden="true"></button>
+            <button class="virtual-key" data-key="ArrowLeft" aria-label="向左移动">←</button><button class="virtual-key" data-key="ArrowDown" aria-label="向下移动">↓</button><button class="virtual-key" data-key="ArrowRight" aria-label="向右移动">→</button>
+          </div>
+        </div>
+        <div>
+          <div class="mouse-controls-label">技能 / 牵引</div>
+          <div class="virtual-actions">
+            <button class="virtual-key" data-key="1">1<small>突击</small></button><button class="virtual-key" data-key="2">2<small>防御</small></button><button class="virtual-key" data-key="3">3<small>拔剑</small></button><button class="virtual-key" data-key="4">4<small>射箭</small></button><button class="virtual-key" data-key="5">5<small>加速</small></button><button class="virtual-key" data-key="6">6<small>牵引</small></button>
+            <button class="virtual-key" data-key="q">Q<small>曹仁</small></button><button class="virtual-key" data-key="w">W<small>夏侯</small></button><button class="virtual-key" data-key="e">E<small>甘宁</small></button><button class="virtual-key" data-key="r">R<small>尚香</small></button><button class="virtual-key" data-key="t">T<small>吕布</small></button>
+          </div>
+        </div>
+      </div>
+      <div class="result" id="result">
+        <div class="result-card">
+          <h2 id="result-title">凯旋</h2>
+          <p id="result-text">白龙穿阵，长坂无双。</p>
+          <div class="restart">按 R 键 · 再战一场</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="controls" aria-label="操作说明">
+      <div class="control-note"><strong>驾驶操作</strong><br>使用键盘 <strong>↑ ↓ ← →</strong> 自由移动。先按 <strong>6</strong>，再按 <strong>Q W E R T</strong> 牵引一台倒地敌机，拖到白帝营正中央即可满血复活。</div>
+      <div class="skills" id="skills">
+        <div class="skill" data-action="1"><span class="key">1</span><b>龙胆突击</b><small>近距枪击</small></div>
+        <div class="skill" data-action="2"><span class="key">2</span><b>龙鳞御阵</b><small>短时减伤</small></div>
+        <div class="skill" data-action="3"><span class="key">3</span><b>拔剑 · 断虹</b><small>高伤横斩</small></div>
+        <div class="skill" data-action="4"><span class="key">4</span><b>穿云射箭</b><small>远程追踪</small></div>
+        <div class="skill" data-action="5"><span class="key">5</span><b>推进加速</b><small>长按 · 最多 20 秒</small></div>
+        <div class="skill" data-action="6"><span class="key">6</span><b>远程牵引</b><small>6 后按 Q W E R T</small></div>
+      </div>
+    </section>
+    <footer>战斗记录自动同步 · 玄甲司机巧局</footer>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const hpFill = document.getElementById('hp-fill');
+    const enemyCount = document.getElementById('enemy-count');
+    const growthFill = document.getElementById('growth-fill');
+    const growthReadout = document.getElementById('growth-readout');
+    const boostFill = document.getElementById('boost-fill');
+    const boostReadout = document.getElementById('boost-readout');
+    const log = document.getElementById('event-log');
+    const result = document.getElementById('result');
+    const resultTitle = document.getElementById('result-title');
+    const resultText = document.getElementById('result-text');
+    const skillEls = [...document.querySelectorAll('.skill')];
+    const virtualKeys = [...document.querySelectorAll('.virtual-key:not(.empty)')];
+    const keys = new Set();
+    const heldPointers = new Map();
+    let last = performance.now(), running = true, elapsed = 0, flash = 0;
+    const zhaoSprite = new Image();
+    zhaoSprite.src = 'assets/mech-three-kingdoms/zhaoyun-silver-rider.png';
+    const enemySprites = {};
+    for (const [id, path] of Object.entries({
+      lubu: 'assets/mech-three-kingdoms/lubu-tyrant.png',
+      weiGuardian: 'assets/mech-three-kingdoms/wei-guardian.png',
+      weiLancer: 'assets/mech-three-kingdoms/wei-lancer.png',
+      wuRaider: 'assets/mech-three-kingdoms/wu-raider.png',
+      wuArcher: 'assets/mech-three-kingdoms/wu-archer.png'
+    })) {
+      const sprite = new Image(); sprite.src = path; enemySprites[id] = sprite;
+    }
+
+    const weapons = { spear: { color: '#55e2d4' }, sword: { color: '#f4d779' }, bow: { color: '#9ebbf3' } };
+    const templates = [
+      { name: '魏 · 曹仁「玄垒」', faction: '魏', sprite: 'weiGuardian', color: '#d89046', speed: 42, damage: 9, weapon: 'hammer' },
+      { name: '魏 · 夏侯惇「烈目」', faction: '魏', sprite: 'weiLancer', color: '#d89046', speed: 55, damage: 10, weapon: 'spear' },
+      { name: '吴 · 甘宁「锦帆」', faction: '吴', sprite: 'wuRaider', color: '#e25d4b', speed: 62, damage: 8, weapon: 'blade' },
+      { name: '吴 · 孙尚香「流火」', faction: '吴', sprite: 'wuArcher', color: '#e25d4b', speed: 57, damage: 8, weapon: 'bow' },
+      { name: '吴 · 吕布「赤霄」', faction: '吴', sprite: 'lubu', color: '#ee5647', speed: 49, damage: 13, weapon: 'halberd', elite: true }
+    ];
+    const spawnPoints = [[600, 145], [885, 120], [1120, 270], [735, 425], [1060, 575]];
+    const player = { faction: '蜀', x: 345, y: 410, r: 29, hp: 100, maxHp: 100, angle: 0, guard: 0, hit: 0, attackBuff: 0, defenseBuff: 0, boostFuel: 20, towing: null, cooldowns: { 1: 0, 2: 0, 3: 0, 4: 0 } };
+    const bases = [
+      { kind: 'base', faction: '蜀', name: '白帝营', x: 150, y: 565, r: 47, color: '#55e2d4', hp: 300, maxHp: 300, timer: 0 },
+      { kind: 'base', faction: '魏', name: '铜雀营', x: 1120, y: 155, r: 47, color: '#d89046', hp: 300, maxHp: 300, timer: 0 },
+      { kind: 'base', faction: '吴', name: '赤乌营', x: 1095, y: 590, r: 47, color: '#e25d4b', hp: 300, maxHp: 300, timer: 0 }
+    ];
+    let enemies, allies, pickups, projectiles, effects, messages, reinforcements, defeated, markedEnemy, captureArmed;
+
+    function reset() {
+      Object.assign(player, { x: 345, y: 410, r: 29, hp: 100, guard: 0, hit: 0, attackBuff: 0, defenseBuff: 0, boostFuel: 20, towing: null });
+      player.cooldowns = { 1: 0, 2: 0, 3: 0, 4: 0 };
+      enemies = templates.map((t, i) => makeEnemy(t, ...spawnPoints[i]));
+      allies = []; pickups = []; projectiles = []; effects = []; messages = []; reinforcements = { 魏: 0, 吴: 0 }; defeated = 0; captureArmed = false; markedEnemy = enemies[Math.floor(Math.random() * enemies.length)];
+      bases.forEach(base => { base.hp = base.maxHp; base.timer = 0; base.destroyed = false; });
+      running = true; result.classList.remove('show'); note('红色光标锁定攻击目标。击倒后按 6 拖回白帝营，20 秒后可转为己方。');
+    }
+    function makeEnemy(t, x = 900, y = 260) { return { ...t, x, y, r: t.elite ? 38 : 31, hp: 100, maxHp: 100, timer: 1 + Math.random(), hit: 0, downed: false, towing: null, carrier: null, conversion: 0, unattended: 0 }; }
+    function activeEnemies() { return enemies.filter(enemy => !enemy.downed); }
+    function openSpawnPoint() { return spawnPoints.reduce((best, point) => { const gap = Math.min(dist(player, { x: point[0], y: point[1] }), ...activeEnemies().map(e => Math.hypot(e.x - point[0], e.y - point[1]))); return !best || gap > best.gap ? { point, gap } : best; }, null).point; }
+    function note(text) { log.innerHTML = text; }
+    function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+    function baseFor(faction) { return bases.find(base => base.faction === (faction === '群' ? '魏' : faction)); }
+    function nearestEnemy() { return markedEnemy && !markedEnemy.downed ? markedEnemy : activeEnemies().reduce((best, e) => !best || dist(player, e) < dist(player, best) ? e : best, null); }
+    function attackTarget() { const camp = bases.find(base => base.faction !== '蜀' && !base.destroyed && dist(player, base) < 270); return camp || nearestEnemy(); }
+    function cool(action, value) { player.cooldowns[action] = value; }
+    function spawnPickup(type, x, y) { pickups.push({ type, x, y, r: 14, phase: Math.random() * Math.PI * 2 }); }
+    function collectPickup(pickup) {
+      const duration = 9; if (pickup.type === 'attack') player.attackBuff = duration; else player.defenseBuff = duration;
+      effects.push({ type: pickup.type, x: pickup.x, y: pickup.y, color: pickup.type === 'attack' ? '#ee5647' : '#55e2d4', life: .55, max: .55 });
+      note(`<span>${pickup.type === 'attack' ? '攻击模块' : '防御模块'}</span> 已装配：效果持续 ${duration} 秒。`);
+    }
+    function downUnit(unit, source) {
+      if (unit.downed) return; if (unit.towing) release(unit); unit.hp = 0; unit.downed = true; unit.remoteClaimed = false; unit.towing = null; unit.carrier = null; unit.conversion = 0; unit.unattended = 0; defeated++;
+      if (unit === markedEnemy) { spawnPickup(Math.random() < .5 ? 'attack' : 'defense', unit.x, unit.y); markedEnemy = null; note(`<span>${unit.name}</span> 被击倒，掉落战术模块！`); }
+      else note(`<span>${unit.name}</span> 被 ${source} 击倒，等待拖运。`);
+    }
+    function impact(target, amount, label, color = '#f5d77e') {
+      if (!target || target.destroyed || target.downed) return; const damage = Math.round(amount * (player.attackBuff > 0 ? 1.5 : 1));
+      target.hp = Math.max(0, target.hp - damage); target.hit = .18;
+      effects.push({ type: 'burst', x: target.x, y: target.y, color, life: .32, max: .32 }); messages.push({ x: target.x, y: target.y - target.r - 16, text: `-${damage}`, color, life: .8 });
+      note(`<span>${label}</span> 命中 ${target.faction ? `${target.faction} · ${target.name}` : target.name}，造成 ${damage} 点伤害。`);
+      if (target.hp === 0 && target.kind !== 'base') downUnit(target, '赵云');
+      if (target.hp === 0 && target.kind === 'base') { target.destroyed = true; note(`<span>${target.faction} · ${target.name}</span> 已被摧毁！`); if (bases.filter(base => base.faction !== '蜀').every(base => base.destroyed)) finish(true); }
+    }
+    function action(n) {
+      if (!running || player.cooldowns[n] > 0) return; const target = attackTarget(); if (!target && n !== '2') return;
+      if (n === '1') { cool(1, .48); if (dist(player, target) < 180) impact(target, 16, '龙胆突击', weapons.spear.color); else note('目标超出龙胆突击射程。'); }
+      if (n === '2') { cool(2, 5.2); player.guard = 2.6; effects.push({ type: 'guard', x: player.x, y: player.y, life: 2.6, max: 2.6 }); note('<span>龙鳞御阵</span>展开：接下来 2.6 秒伤害大幅降低。'); }
+      if (n === '3') { cool(3, 2.5); effects.push({ type: 'slash', x: player.x, y: player.y, angle: player.angle, life: .38, max: .38 }); if (dist(player, target) < 245) impact(target, 33, '拔剑 · 断虹', '#eaf4d5'); else note('断虹剑势掠过，但未触及目标。'); }
+      if (n === '4') { cool(4, 1.7); projectiles.push({ x: player.x, y: player.y, target, speed: 510, life: 2.8, damage: 24, color: '#6ee8dc' }); note('<span>穿云射箭</span>发射，追踪箭矢已锁定敌机。'); }
+    }
+    function hurtPlayer(amount, source) { const actual = player.guard > 0 ? Math.ceil(amount * .25) : (player.defenseBuff > 0 ? Math.ceil(amount * .5) : amount); player.hp = Math.max(0, player.hp - actual); player.hit = .18; flash = .16; messages.push({ x: player.x, y: player.y - 52, text: `-${actual}`, color: '#ff775e', life: .75 }); note(`${source} 发动攻击，白龙承受 <span>${actual}</span> 点伤害。`); if (player.hp <= 0) finish(false); }
+    function finish(win = false) { if (!running) return; running = false; resultTitle.textContent = win ? '凯旋' : '折戟'; resultText.textContent = win ? '魏、吴两座大营已被摧毁，敌军增援中断。' : '白龙机甲受损，按 R 键重新接入战域。'; result.classList.add('show'); }
+    function tow(carrier, unit) { carrier.towing = unit; unit.carrier = carrier; unit.conversion = 0; unit.unattended = 0; }
+    function release(carrier) { if (carrier.towing) { carrier.towing.carrier = null; carrier.towing.conversion = 0; carrier.towing.unattended = 0; carrier.towing = null; } }
+    const captureKeys = { q: 'weiGuardian', w: 'weiLancer', e: 'wuRaider', r: 'wuArcher', t: 'lubu' };
+    function toggleTow() {
+      if (player.towing) { note('赵云正在牵引一台机甲，请先送至白帝营中央满血复活。'); return; }
+      captureArmed = true; note('<span>远程夺取已准备</span>：按 Q 曹仁、W 夏侯惇、E 甘宁、R 孙尚香、T 吕布。');
+    }
+    function captureByKey(key) {
+      if (!captureArmed) return;
+      const sprite = captureKeys[key]; const unit = enemies.filter(enemy => enemy.downed && !enemy.remoteClaimed && enemy.sprite === sprite).reduce((best, enemy) => !best || dist(player, enemy) < dist(player, best) ? enemy : best, null);
+      captureArmed = false;
+      if (!unit) { note('该型号目前没有倒地机甲可夺取。'); return; }
+      if (unit.carrier) release(unit.carrier);
+      unit.remoteClaimed = false; tow(player, unit);
+      note(`<span>远程牵引成功</span>：${unit.name} 已接到赵云身后，请拖至白帝营正中央满血复活。`);
+    }
+    function followCarrier(carrier, unit) { const angle = Math.atan2(carrier.y - unit.y, carrier.x - unit.x); unit.x = carrier.x - Math.cos(angle) * (carrier.r + unit.r + 12); unit.y = carrier.y - Math.sin(angle) * (carrier.r + unit.r + 12); }
+    function healAtBase(unit, base, dt) { const owner = unit.faction === '群' ? '魏' : unit.faction; if (!unit.downed && !base.destroyed && base.faction === owner && dist(unit, base) < base.r + 65) unit.hp = Math.min(unit.maxHp, unit.hp + 50 * dt); }
+    function shouldRetreat(unit, base) { if (!base || base.destroyed) { unit.retreating = false; return false; } if (unit.hp <= unit.maxHp * .3) unit.retreating = true; if (unit.retreating && unit.hp >= unit.maxHp * .7) unit.retreating = false; return unit.retreating; }
+    function convertUnit(unit, faction) {
+      release(unit.carrier || { towing: unit }); unit.downed = false; unit.remoteClaimed = false; unit.unattended = 0; unit.hp = unit.maxHp; unit.conversion = 0; unit.color = baseFor(faction).color; unit.faction = faction;
+      if (faction === '蜀') { enemies = enemies.filter(enemy => enemy !== unit); unit.allied = true; if (!allies.includes(unit)) allies.push(unit); note(`<span>${unit.name}</span> 已满血复活为蜀军，能量光柱转为蓝色。`); }
+      else { unit.allied = false; note(`<span>${unit.name}</span> 已被 ${faction} 军转化。`); }
+    }
+    function updateConversion(carrier, unit, base, faction, dt) { if (!unit || dist(carrier, base) > 24) return; convertUnit(unit, faction); }
+    function destroyUnattended(unit) { if (unit.carrier) release(unit.carrier); enemies = enemies.filter(enemy => enemy !== unit); allies = allies.filter(ally => ally !== unit); if (markedEnemy === unit) markedEnemy = null; note(`<span>${unit.name}</span> 无人拖运超过 10 秒，已自动销毁。`); }
+    function update(dt) {
+      elapsed += dt; if (!running) return;
+      let dx = (keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0), dy = (keys.has('ArrowDown') ? 1 : 0) - (keys.has('ArrowUp') ? 1 : 0);
+      const boosting = keys.has('5') && player.boostFuel > 0 && (dx || dy); if (boosting) player.boostFuel = Math.max(0, player.boostFuel - dt);
+      if (dx || dy) { const len = Math.hypot(dx, dy); dx /= len; dy /= len; const speed = 215 * (boosting ? 1.8 : 1); player.x = Math.max(48, Math.min(W - 48, player.x + dx * speed * dt)); player.y = Math.max(74, Math.min(H - 48, player.y + dy * speed * dt)); player.angle = Math.atan2(dy, dx); }
+      player.guard = Math.max(0, player.guard - dt); player.attackBuff = Math.max(0, player.attackBuff - dt); player.defenseBuff = Math.max(0, player.defenseBuff - dt); player.hit = Math.max(0, player.hit - dt); flash = Math.max(0, flash - dt); Object.keys(player.cooldowns).forEach(k => player.cooldowns[k] = Math.max(0, player.cooldowns[k] - dt));
+      healAtBase(player, baseFor('蜀'), dt);
+      if (player.towing) { followCarrier(player, player.towing); updateConversion(player, player.towing, baseFor('蜀'), '蜀', dt); }
+      [...enemies, ...allies].filter(unit => unit.downed).forEach(unit => {
+        if (unit.carrier) { unit.unattended = 0; return; }
+        const base = bases.find(camp => !camp.destroyed && dist(unit, camp) < 24);
+        if (base) convertUnit(unit, base.faction);
+        else { unit.unattended += dt; if (unit.unattended >= 10) destroyUnattended(unit); }
+      });
+      enemies.forEach(e => {
+        if (e.downed) return; e.hit = Math.max(0, e.hit - dt); e.timer -= dt;
+        const home = baseFor(e.faction), casualty = [...enemies, ...allies].find(unit => unit.downed && !unit.carrier && !unit.remoteClaimed && unit.faction !== e.faction);
+        healAtBase(e, home, dt);
+        const retreating = shouldRetreat(e, home);
+        const hostile = [player, ...allies, ...activeEnemies().filter(unit => unit !== e && unit.faction !== e.faction)].reduce((best, unit) => !best || dist(e, unit) < dist(e, best) ? unit : best, null);
+        const target = e.towing || retreating ? home : (casualty || hostile); if (!target) return; const d = dist(e, target), angle = Math.atan2(target.y - e.y, target.x - e.x);
+        if (d > (e.towing ? 24 : e.r + (target.r || 0) + 30)) { e.x += Math.cos(angle) * e.speed * dt; e.y += Math.sin(angle) * e.speed * dt; }
+        if (e.towing) { followCarrier(e, e.towing); updateConversion(e, e.towing, home, home.faction, dt); }
+        else if (retreating) return;
+        else if (casualty && d < e.r + casualty.r + 30) tow(e, casualty);
+        else if (d < e.r + target.r + 76 && e.timer <= 0) { if (target === player) hurtPlayer(e.damage, e.name); else { target.hp = Math.max(0, target.hp - e.damage); target.hit = .18; if (target.hp === 0) downUnit(target, e.name); } e.timer = 1.15 + Math.random() * .8; effects.push({ type: 'enemyShot', x: e.x, y: e.y, tx: target.x, ty: target.y, color: e.color, life: .18, max: .18 }); }
+      });
+      allies.forEach(ally => {
+        if (ally.downed) return; ally.hit = Math.max(0, ally.hit - dt); ally.timer -= dt;
+        const home = baseFor('蜀'), casualty = [...enemies, ...allies].find(unit => unit !== ally && unit.downed && !unit.carrier && !unit.remoteClaimed);
+        healAtBase(ally, home, dt); const retreating = shouldRetreat(ally, home), target = ally.towing || retreating ? home : (casualty || activeEnemies().reduce((best, enemy) => !best || dist(ally, enemy) < dist(ally, best) ? enemy : best, null)); if (!target) return;
+        const d = dist(ally, target), angle = Math.atan2(target.y - ally.y, target.x - ally.x); if (d > (ally.towing ? 24 : ally.r + (target.r || 0) + 30)) { ally.x += Math.cos(angle) * ally.speed * dt; ally.y += Math.sin(angle) * ally.speed * dt; }
+        if (ally.towing) { followCarrier(ally, ally.towing); updateConversion(ally, ally.towing, home, '蜀', dt); }
+        else if (retreating) return;
+        else if (casualty && d < ally.r + casualty.r + 30) tow(ally, casualty);
+        else if (d < ally.r + target.r + 72 && ally.timer <= 0) { target.hp = Math.max(0, target.hp - 7); target.hit = .18; if (target.hp === 0) downUnit(target, ally.name); ally.timer = 1.25; effects.push({ type: 'allyShot', x: ally.x, y: ally.y, tx: target.x, ty: target.y, color: '#55e2d4', life: .18, max: .18 }); }
+      });
+      bases.forEach(base => {
+        if (base.destroyed) return; base.timer -= dt; const units = [player, ...allies, ...activeEnemies()]; const target = units.filter(unit => unit.faction !== base.faction).reduce((best, unit) => !best || dist(base, unit) < dist(base, best) ? unit : best, null);
+        if (target && dist(base, target) < 285 && base.timer <= 0) { if (target === player) hurtPlayer(6, `${base.faction} · ${base.name}`); else { target.hp = Math.max(0, target.hp - 6); target.hit = .18; if (target.hp === 0) downUnit(target, base.name); } base.timer = 1.7; effects.push({ type: 'baseShot', x: base.x, y: base.y, tx: target.x, ty: target.y, color: base.color, life: .2, max: .2 }); }
+      });
+      ['魏', '吴'].forEach(faction => { const base = baseFor(faction), interval = 6.5 + Math.min(12, activeEnemies().length) * .3; reinforcements[faction] += dt; if (!base.destroyed && reinforcements[faction] > interval) { const options = templates.filter(template => template.faction === faction); const point = openSpawnPoint(), enemy = makeEnemy(options[(defeated + activeEnemies().length) % options.length], point[0] + (Math.random() - .5) * 56, point[1] + (Math.random() - .5) * 42); enemies.push(enemy); if (!markedEnemy) markedEnemy = enemy; reinforcements[faction] = 0; } });
+      for (let i = pickups.length - 1; i >= 0; i--) if (dist(player, pickups[i]) < player.r + pickups[i].r + 8) { collectPickup(pickups[i]); pickups.splice(i, 1); }
+      projectiles = projectiles.filter(p => { p.life -= dt; if (!p.target || p.target.downed || p.target.destroyed || p.life <= 0) return false; const a = Math.atan2(p.target.y - p.y, p.target.x - p.x); p.x += Math.cos(a) * p.speed * dt; p.y += Math.sin(a) * p.speed * dt; if (dist(p, p.target) < p.target.r + 12) { impact(p.target, p.damage, '穿云射箭', '#6ee8dc'); return false; } return true; });
+      effects = effects.filter(e => (e.life -= dt) > 0); messages = messages.filter(m => (m.life -= dt) > 0);
+    }
+
+    function polygon(points, fill, stroke) { ctx.beginPath(); points.forEach((p, i) => i ? ctx.lineTo(...p) : ctx.moveTo(...p)); ctx.closePath(); if (fill) ctx.fillStyle = fill, ctx.fill(); if (stroke) ctx.strokeStyle = stroke, ctx.stroke(); }
+    function drawMech(unit, isPlayer = false) {
+      const {x, y, r} = unit; const main = isPlayer ? '#d4e5e2' : '#929aa0'; const dark = isPlayer ? '#315b6b' : '#171c22';
+      const glow = isPlayer ? weapons.spear.color : unit.color;
+      const sprite = isPlayer ? zhaoSprite : enemySprites[unit.sprite];
+      const spriteHeight = r * (isPlayer ? 5.15 : 4.25);
+      const hasSprite = sprite && sprite.complete && sprite.naturalWidth;
+      if (unit.faction === '蜀') { ctx.save(); ctx.globalAlpha = unit.downed ? .22 : .58; ctx.strokeStyle = '#55e2d4'; ctx.shadowBlur = 20; ctx.shadowColor = '#55e2d4'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(x, y + r * .7); ctx.lineTo(x, y - spriteHeight * .95); ctx.stroke(); ctx.restore(); }
+      if (!isPlayer && unit === markedEnemy) { ctx.save(); ctx.strokeStyle = '#ff4d45'; ctx.lineWidth = 3; ctx.shadowBlur = 18; ctx.shadowColor = '#ff4d45'; ctx.beginPath(); ctx.arc(x, y, r + 28, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x - r - 38, y); ctx.lineTo(x - r - 15, y); ctx.moveTo(x + r + 15, y); ctx.lineTo(x + r + 38, y); ctx.moveTo(x, y - r - 38); ctx.lineTo(x, y - r - 15); ctx.moveTo(x, y + r + 15); ctx.lineTo(x, y + r + 38); ctx.stroke(); ctx.restore(); }
+      if (hasSprite) {
+        const h = spriteHeight, w = h * (sprite.naturalWidth / sprite.naturalHeight);
+        ctx.save(); ctx.globalAlpha = unit.downed ? .48 : (unit.hit > 0 ? .72 : 1); ctx.shadowBlur = 22; ctx.shadowColor = glow;
+        if (unit.downed) { ctx.translate(x, y); ctx.rotate(Math.PI / 2); ctx.drawImage(sprite, -w * .5, -h * .72, w, h); } else ctx.drawImage(sprite, x - w * .5, y - h * .72, w, h); ctx.restore();
+      } else {
+        ctx.save(); ctx.translate(x, y);
+        const ang = isPlayer ? player.angle : Math.atan2(player.y - y, player.x - x); ctx.rotate(ang);
+        ctx.shadowBlur = 13; ctx.shadowColor = glow; ctx.lineWidth = 2.5; ctx.strokeStyle = '#111b20';
+        // 同一套黑银重甲语言：头盔、躯干、双臂、双腿、能量核心
+        ctx.fillStyle = dark; ctx.fillRect(-r*.22, -r*.98, r*.44, r*.25); ctx.strokeRect(-r*.22, -r*.98, r*.44, r*.25);
+        ctx.fillStyle = glow; ctx.fillRect(-r*.09, -r*.89, r*.3, r*.06);
+        polygon([[-r*.36,-r*.67],[r*.36,-r*.67],[r*.48,-r*.06],[r*.24,r*.34],[-r*.24,r*.34],[-r*.48,-r*.06]], main, '#111b20');
+        ctx.fillStyle = dark; ctx.fillRect(-r*.17, -r*.49, r*.34, r*.55); ctx.fillStyle = glow; ctx.fillRect(-r*.06, -r*.39, r*.12, r*.38);
+        ctx.fillStyle = main; ctx.fillRect(-r*.68, -r*.54, r*.23, r*.63); ctx.fillRect(r*.45, -r*.54, r*.23, r*.63); ctx.strokeRect(-r*.68, -r*.54, r*.23, r*.63); ctx.strokeRect(r*.45, -r*.54, r*.23, r*.63);
+        ctx.fillStyle = dark; ctx.fillRect(-r*.43, r*.25, r*.29, r*.65); ctx.fillRect(r*.14, r*.25, r*.29, r*.65); ctx.fillStyle = main; ctx.fillRect(-r*.56, r*.78, r*.42, r*.16); ctx.fillRect(r*.14, r*.78, r*.42, r*.16);
+        const held = isPlayer ? 'spear' : unit.weapon;
+        ctx.strokeStyle = glow; ctx.fillStyle = glow; ctx.lineWidth = Math.max(3, r*.09);
+        if (held === 'spear') { ctx.beginPath();ctx.moveTo(r*.48,-r*.32);ctx.lineTo(r*1.36,-r*.76);ctx.stroke();polygon([[r*1.38,-r*.78],[r*1.1,-r*.86],[r*1.25,-r*.58]], glow); }
+        if (held === 'twinBlades') { [-.18,.18].forEach(offset => { ctx.beginPath();ctx.moveTo(r*.46,-r*.22+offset*r);ctx.lineTo(r*1.06,-r*.5+offset*r);ctx.stroke(); }); }
+        if (held === 'blade') { ctx.beginPath();ctx.moveTo(r*.48,-r*.26);ctx.lineTo(r*1.17,-r*.63);ctx.stroke(); }
+        if (held === 'hammer') { ctx.beginPath();ctx.moveTo(r*.46,-r*.22);ctx.lineTo(r*1.05,-r*.55);ctx.stroke();ctx.fillRect(r*.94,-r*.73,r*.28,r*.34); }
+        if (held === 'bow') { ctx.lineWidth=3;ctx.beginPath();ctx.arc(r*.84,-r*.38,r*.31,-1.15,1.15);ctx.stroke();ctx.beginPath();ctx.moveTo(r*.55,-r*.38);ctx.lineTo(r*1.15,-r*.38);ctx.stroke(); }
+        ctx.restore();
+      }
+      // health label
+      const labelY = hasSprite ? y - spriteHeight * .80 : (isPlayer ? y - r * 4.95 : y-r-21); const barY = hasSprite ? labelY + 7 : (isPlayer ? labelY + 7 : y-r-14);
+      ctx.save(); ctx.textAlign = 'center'; ctx.font = '600 12px "Noto Serif SC", serif'; ctx.fillStyle = isPlayer ? '#dff7ee' : '#f1d8a8'; ctx.fillText(unit.downed ? `${unit.name} · 倒地` : (isPlayer ? '蜀 · 赵云「子龙·银骑」' : unit.name), x, labelY);
+      const bw = r*2.1; ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(x-bw/2, barY, bw, 5); ctx.fillStyle = isPlayer ? '#51dfd2' : unit.color; ctx.fillRect(x-bw/2, barY, bw*(unit.hp/unit.maxHp), 5); ctx.restore();
+    }
+
+    function drawBases() {
+      bases.forEach(base => {
+        ctx.save(); ctx.translate(base.x, base.y); ctx.globalAlpha = base.destroyed ? .32 : 1; ctx.shadowBlur = 25; ctx.shadowColor = base.color;
+        ctx.fillStyle = 'rgba(9,17,22,.76)'; ctx.beginPath(); ctx.arc(0, 0, 47, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = base.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, 47, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = 'rgba(244,196,109,.65)'; ctx.lineWidth = 1; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.arc(0, 0, 58, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = base.color; ctx.fillRect(-18, -12, 36, 29); ctx.fillStyle = '#1c2930'; ctx.fillRect(-8, -28, 16, 16);
+        ctx.fillStyle = '#f3e6be'; ctx.font = '900 13px "Noto Serif SC", serif'; ctx.textAlign = 'center'; ctx.fillText(`${base.faction} · ${base.name}`, 0, -67);
+        ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(-30, 28, 60, 5); ctx.fillStyle = base.color; ctx.fillRect(-30, 28, 60 * (base.hp / base.maxHp), 5); ctx.restore();
+      });
+    }
+
+    function drawPickups() {
+      pickups.forEach(p => {
+        const bob = Math.sin(elapsed * 3 + p.phase) * 3; const color = p.type === 'attack' ? '#ee5647' : '#55e2d4';
+        ctx.save(); ctx.translate(p.x, p.y + bob); ctx.shadowBlur = 18; ctx.shadowColor = color; ctx.strokeStyle = color; ctx.lineWidth = 3;
+        if (p.type === 'attack') { ctx.rotate(Math.PI / 4); ctx.strokeRect(-p.r, -p.r, p.r * 2, p.r * 2); ctx.fillStyle = '#ffb27a'; ctx.fillRect(-3, -p.r + 4, 6, p.r * 2 - 8); }
+        else { ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = '#d8fff6'; ctx.beginPath(); ctx.arc(0, 0, p.r * .38, 0, Math.PI * 2); ctx.fill(); }
+        ctx.restore();
+      });
+    }
+
+    function drawBackground() {
+      const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#172735'); sky.addColorStop(.55, '#31434b'); sky.addColorStop(1, '#202c2d'); ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(244,196,109,.22)'; ctx.beginPath(); ctx.arc(1040, 130, 75, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#25323a'; for (let i=0; i<12; i++) { const x = i*125-55; ctx.beginPath(); ctx.moveTo(x,H*.63); ctx.lineTo(x+95,H*.36+(i%3)*25); ctx.lineTo(x+180,H*.63); ctx.fill(); }
+      ctx.fillStyle = 'rgba(16,28,29,.48)'; ctx.fillRect(0,H*.61,W,H*.39);
+      ctx.strokeStyle = 'rgba(234,215,173,.065)'; ctx.lineWidth = 1; for(let x=-200;x<W+300;x+=74){ ctx.beginPath();ctx.moveTo(x,H);ctx.lineTo(x+260,H*.61);ctx.stroke(); } for(let y=H*.65;y<H;y+=42){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y-80);ctx.stroke();}
+      ctx.fillStyle='rgba(235,128,55,.1)'; ctx.beginPath();ctx.ellipse(260,620,205,52,0,0,Math.PI*2);ctx.fill();
+    }
+
+    function drawEffects() {
+      effects.forEach(e => {
+        const p = e.life / e.max;
+        ctx.save(); ctx.globalAlpha = p;
+        if (e.type === 'guard') { ctx.strokeStyle='#59e3d6';ctx.lineWidth=3;ctx.shadowBlur=22;ctx.shadowColor='#59e3d6';ctx.beginPath();ctx.arc(e.x,e.y,53+(1-p)*15,0,Math.PI*2);ctx.stroke(); }
+        if (e.type === 'burst') { ctx.strokeStyle=e.color;ctx.lineWidth=4;ctx.shadowBlur=18;ctx.shadowColor=e.color;ctx.beginPath();ctx.arc(e.x,e.y,14+(1-p)*44,0,Math.PI*2);ctx.stroke(); }
+        if (e.type === 'slash') { ctx.strokeStyle='#f1f5d2';ctx.lineWidth=10*p;ctx.shadowBlur=18;ctx.shadowColor='#f4c46d';ctx.beginPath();ctx.arc(e.x,e.y,90, e.angle-.85, e.angle+.85);ctx.stroke(); }
+        if (e.type === 'muzzle') { ctx.fillStyle='#f8d27b';ctx.beginPath();ctx.arc(e.x,e.y,34*(1-p),0,Math.PI*2);ctx.fill(); }
+        if (e.type === 'attack' || e.type === 'defense') { ctx.strokeStyle=e.color;ctx.lineWidth=5;ctx.shadowBlur=22;ctx.shadowColor=e.color;ctx.beginPath();ctx.arc(e.x,e.y,14+(1-p)*42,0,Math.PI*2);ctx.stroke(); }
+        if (e.type === 'enemyShot') { ctx.strokeStyle=e.color;ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.tx,e.ty);ctx.stroke(); }
+        if (e.type === 'allyShot' || e.type === 'baseShot') { ctx.strokeStyle=e.color;ctx.shadowBlur=14;ctx.shadowColor=e.color;ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.tx,e.ty);ctx.stroke(); }
+        ctx.restore();
+      });
+      projectiles.forEach(p => { ctx.save();ctx.strokeStyle=p.color;ctx.shadowBlur=13;ctx.shadowColor=p.color;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(p.x-14,p.y);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.fillStyle='#f4ffe5';ctx.beginPath();ctx.arc(p.x,p.y,4,0,Math.PI*2);ctx.fill();ctx.restore(); });
+      messages.forEach(m => { ctx.save();ctx.globalAlpha=Math.min(1,m.life*2);ctx.fillStyle=m.color;ctx.font='900 18px ui-monospace, monospace';ctx.textAlign='center';ctx.fillText(m.text,m.x,m.y-(1-m.life)*24);ctx.restore(); });
+    }
+
+    function render() {
+      drawBackground();
+      drawBases();
+      drawPickups();
+      enemies.forEach(e => drawMech(e));
+      allies.forEach(ally => drawMech(ally));
+      drawMech(player, true); drawEffects();
+      if (flash > 0) { ctx.fillStyle=`rgba(255,75,55,${flash*.45})`;ctx.fillRect(0,0,W,H); }
+      ctx.save();ctx.fillStyle='rgba(240,224,180,.38)';ctx.font='10px ui-monospace, monospace';ctx.fillText(`战域时间 ${elapsed.toFixed(1).padStart(5,'0')}s`,W-148,H-18);ctx.restore();
+      hpFill.style.width = `${player.hp}%`; enemyCount.textContent = String(activeEnemies().length).padStart(2,'0');
+      const towed = player.towing; const campDistance = towed ? dist(player, baseFor('蜀')) : 0;
+      growthFill.style.width = `${towed ? Math.max(0, 100 - campDistance / 4) : (markedEnemy ? (markedEnemy.hp / markedEnemy.maxHp) * 100 : 0)}%`; growthReadout.textContent = captureArmed ? '夺取选择：Q 曹仁 · W 夏侯惇 · E 甘宁 · R 孙尚香 · T 吕布' : (towed ? `拖运：${towed.name} · 前往白帝营营心复活` : (markedEnemy ? `${markedEnemy.name} · 攻击 ${player.attackBuff.toFixed(0)}s / 防御 ${player.defenseBuff.toFixed(0)}s` : '正在分配新的攻击目标…'));
+      boostFill.style.width = `${player.boostFuel / 20 * 100}%`; boostReadout.textContent = `推进 ${player.boostFuel.toFixed(1)}s`;
+      skillEls.forEach(el => { const n=el.dataset.action; el.classList.toggle('active', (n==='2' && player.guard>0) || (n==='5' && keys.has('5') && player.boostFuel>0)); el.classList.toggle('cooldown', n !== '5' && player.cooldowns[n]>0); });
+    }
+    function loop(now) { const dt=Math.min(.04,(now-last)/1000);last=now;update(dt);render();requestAnimationFrame(loop); }
+
+    function nudgePlayer(key) {
+      if (!running) return;
+      const moves = { ArrowUp: [0, -34], ArrowDown: [0, 34], ArrowLeft: [-34, 0], ArrowRight: [34, 0] };
+      const move = moves[key]; if (!move) return;
+      player.x = Math.max(48, Math.min(W - 48, player.x + move[0])); player.y = Math.max(74, Math.min(H - 48, player.y + move[1])); player.angle = Math.atan2(move[1], move[0]);
+    }
+    function runCommand(key) {
+      if (['1','2','3','4'].includes(key)) action(key);
+      if (key === '6') toggleTow();
+      const lower = key.toLowerCase();
+      if (captureKeys[lower]) captureByKey(lower);
+      if (lower === 'r' && !running) reset();
+    }
+    function startVirtualKey(event) {
+      const key = event.currentTarget.dataset.key; event.preventDefault();
+      if (key.startsWith('Arrow') || key === '5') {
+        event.currentTarget.setPointerCapture(event.pointerId); heldPointers.set(event.pointerId, { key, started: performance.now() }); keys.add(key);
+      } else runCommand(key);
+    }
+    function stopVirtualKey(event) {
+      const held = heldPointers.get(event.pointerId); if (!held) return;
+      heldPointers.delete(event.pointerId); keys.delete(held.key);
+      if (held.key.startsWith('Arrow') && performance.now() - held.started < 180) nudgePlayer(held.key);
+    }
+    virtualKeys.forEach(button => {
+      button.addEventListener('pointerdown', startVirtualKey);
+      button.addEventListener('pointerup', stopVirtualKey);
+      button.addEventListener('pointercancel', stopVirtualKey);
+      button.addEventListener('lostpointercapture', stopVirtualKey);
+    });
+    window.addEventListener('keydown', e => {
+      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','1','2','3','4','5','6','q','Q','w','W','e','E','r','R','t','T'].includes(e.key)) e.preventDefault();
+      if (e.key.startsWith('Arrow') || e.key === '5') keys.add(e.key);
+      else if (!e.repeat) runCommand(e.key);
+    });
+    window.addEventListener('keyup', e => keys.delete(e.key));
+    window.addEventListener('blur', () => keys.clear());
+    reset(); requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
