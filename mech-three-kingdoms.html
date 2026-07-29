@@ -94,7 +94,7 @@
     }
     .game-frame::before { left: 9px; top: 9px; border-width: 1px 0 0 1px; }
     .game-frame::after { right: 9px; bottom: 9px; border-width: 0 1px 1px 0; }
-    canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #101920; }
+    canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #101920; cursor: crosshair; touch-action: none; }
 
     .hud {
       position: absolute;
@@ -159,11 +159,8 @@
       position: absolute;
       z-index: 5;
       right: 18px;
-      bottom: 17px;
-      display: flex;
-      align-items: end;
-      gap: 10px;
-      padding: 9px;
+      bottom: 84px;
+      padding: 10px 12px 12px;
       border: 1px solid rgba(232,215,173,.28);
       background: rgba(8,13,18,.78);
       box-shadow: 0 10px 30px rgba(0,0,0,.3);
@@ -171,21 +168,23 @@
       user-select: none;
       touch-action: none;
     }
-    .mouse-controls-label { color: #99aaa9; font: 700 9px ui-monospace, monospace; letter-spacing: .12em; }
-    .direction-pad { display: grid; grid-template-columns: repeat(3, 34px); gap: 4px; }
-    .virtual-actions { display: grid; grid-template-columns: repeat(6, 38px); gap: 4px; }
+    .mouse-controls-label { margin-bottom: 7px; color: #99aaa9; font: 700 9px ui-monospace, monospace; letter-spacing: .12em; text-align: center; }
+    .virtual-actions { display: grid; grid-template-columns: repeat(6, 66px); gap: 7px; }
     .virtual-key {
-      min-height: 32px;
-      padding: 2px;
-      border: 1px solid rgba(232,215,173,.33);
+      width: 66px;
+      height: 66px;
+      padding: 4px;
+      border: 2px solid rgba(232,215,173,.42);
+      border-radius: 50%;
       color: #e8d7ad;
-      background: rgba(255,255,255,.055);
-      font: 800 14px/1 ui-monospace, monospace;
+      background: radial-gradient(circle at 35% 28%, rgba(255,255,255,.16), rgba(255,255,255,.035) 58%, rgba(0,0,0,.25));
+      font: 900 21px/1 ui-monospace, monospace;
       cursor: pointer;
     }
-    .virtual-key small { display: block; margin-top: 2px; color: #8ba2a5; font: 8px/1 "Noto Serif SC", serif; }
+    .virtual-key small { display: block; margin-top: 4px; color: #aabdbb; font: 10px/1 "Noto Serif SC", serif; }
     .virtual-key:hover, .virtual-key:active { border-color: var(--jade); color: #fff; background: rgba(57,216,203,.2); box-shadow: 0 0 13px rgba(57,216,203,.24); }
-    .virtual-key.empty { visibility: hidden; pointer-events: none; }
+    .virtual-key.active { border-color: var(--jade); color: #fff; background: rgba(57,216,203,.24); box-shadow: 0 0 18px rgba(57,216,203,.32); }
+    .virtual-key.cooldown { opacity: .46; }
 
     .result {
       position: absolute;
@@ -231,12 +230,7 @@
       .pilot-sub { display: none; }
       .bar { margin-top: 4px; width: 120px; height: 6px; }
       .controls { grid-template-columns: 1fr; }
-      .skills { order: -1; }
-      .skill { min-height: 52px; padding: 7px 4px 5px 30px; }
-      .key { left: 5px; top: 7px; padding: 0 5px; font-size: 13px; }
-      .skill b { font-size: 11px; }
-      .skill small { display: none; }
-      .mouse-controls { right: 9px; bottom: 52px; gap: 5px; padding: 6px; transform: scale(.72); transform-origin: bottom right; }
+      .mouse-controls { right: 8px; bottom: 52px; transform: scale(.72); transform-origin: bottom right; }
     }
   </style>
 </head>
@@ -261,21 +255,11 @@
         <div class="score"><div class="score-label">剩余敌机</div><div id="enemy-count">05</div></div>
       </div>
       <div class="growth-status"><div class="growth-label">攻击目标</div><div class="bar"><div id="growth-fill"></div></div><div id="growth-readout">正在分配目标…</div><div class="boost-line"><span id="boost-readout">推进 20.0s</span><div class="bar"><div id="boost-fill"></div></div></div></div>
-      <div class="event-log" id="event-log">战域接入完成。<span>方向键</span>移动，准备迎敌。</div>
+      <div class="event-log" id="event-log">战域接入完成。<span>鼠标或手指</span>引导赵云移动，准备迎敌。</div>
       <div class="mouse-controls" aria-label="鼠标操作控制台">
-        <div>
-          <div class="mouse-controls-label">移动</div>
-          <div class="direction-pad">
-            <button class="virtual-key empty" aria-hidden="true"></button><button class="virtual-key" data-key="ArrowUp" aria-label="向上移动">↑</button><button class="virtual-key empty" aria-hidden="true"></button>
-            <button class="virtual-key" data-key="ArrowLeft" aria-label="向左移动">←</button><button class="virtual-key" data-key="ArrowDown" aria-label="向下移动">↓</button><button class="virtual-key" data-key="ArrowRight" aria-label="向右移动">→</button>
-          </div>
-        </div>
-        <div>
-          <div class="mouse-controls-label">技能 / 牵引</div>
-          <div class="virtual-actions">
-            <button class="virtual-key" data-key="1">1<small>突击</small></button><button class="virtual-key" data-key="2">2<small>防御</small></button><button class="virtual-key" data-key="3">3<small>拔剑</small></button><button class="virtual-key" data-key="4">4<small>射箭</small></button><button class="virtual-key" data-key="5">5<small>加速</small></button><button class="virtual-key" data-key="6">6<small>牵引</small></button>
-            <button class="virtual-key" data-key="q">Q<small>曹仁</small></button><button class="virtual-key" data-key="w">W<small>夏侯</small></button><button class="virtual-key" data-key="e">E<small>甘宁</small></button><button class="virtual-key" data-key="r">R<small>尚香</small></button><button class="virtual-key" data-key="t">T<small>吕布</small></button>
-          </div>
+        <div class="mouse-controls-label">六键战术面板</div>
+        <div class="virtual-actions">
+          <button class="virtual-key" data-key="1">1<small>突击</small></button><button class="virtual-key" data-key="2">2<small>防御</small></button><button class="virtual-key" data-key="3">3<small>拔剑</small></button><button class="virtual-key" data-key="4">4<small>射箭</small></button><button class="virtual-key" data-key="5">5<small>加速</small></button><button class="virtual-key" data-key="6">6<small>牵引</small></button>
         </div>
       </div>
       <div class="result" id="result">
@@ -288,15 +272,7 @@
     </section>
 
     <section class="controls" aria-label="操作说明">
-      <div class="control-note"><strong>驾驶操作</strong><br>使用键盘 <strong>↑ ↓ ← →</strong> 自由移动。先按 <strong>6</strong>，再按 <strong>Q W E R T</strong> 牵引一台倒地敌机，拖到白帝营正中央即可满血复活。</div>
-      <div class="skills" id="skills">
-        <div class="skill" data-action="1"><span class="key">1</span><b>龙胆突击</b><small>近距枪击</small></div>
-        <div class="skill" data-action="2"><span class="key">2</span><b>龙鳞御阵</b><small>短时减伤</small></div>
-        <div class="skill" data-action="3"><span class="key">3</span><b>拔剑 · 断虹</b><small>高伤横斩</small></div>
-        <div class="skill" data-action="4"><span class="key">4</span><b>穿云射箭</b><small>远程追踪</small></div>
-        <div class="skill" data-action="5"><span class="key">5</span><b>推进加速</b><small>长按 · 最多 20 秒</small></div>
-        <div class="skill" data-action="6"><span class="key">6</span><b>远程牵引</b><small>6 后按 Q W E R T</small></div>
-      </div>
+      <div class="control-note"><strong>驾驶操作</strong><br>电脑端在战场内移动鼠标，赵云会跟随光标；手机端用手指拖动。点击任意<strong>倒地机甲</strong>即可牵引，敌我双方均可拖回白帝营复活。键盘操作保持不变：<strong>↑ ↓ ← →</strong> 移动，按 <strong>6</strong> 后再按 <strong>Q W E R T</strong> 牵引对应敌机。</div>
     </section>
     <footer>战斗记录自动同步 · 玄甲司机巧局</footer>
   </main>
@@ -315,10 +291,9 @@
     const result = document.getElementById('result');
     const resultTitle = document.getElementById('result-title');
     const resultText = document.getElementById('result-text');
-    const skillEls = [...document.querySelectorAll('.skill')];
-    const virtualKeys = [...document.querySelectorAll('.virtual-key:not(.empty)')];
+    const virtualKeys = [...document.querySelectorAll('.virtual-key')];
     const keys = new Set();
-    const heldPointers = new Map();
+    let pointerTarget = null, touchPointerId = null, claimedPointerId = null;
     let last = performance.now(), running = true, elapsed = 0, flash = 0;
     const zhaoSprite = new Image();
     zhaoSprite.src = 'assets/mech-three-kingdoms/zhaoyun-silver-rider.png';
@@ -356,7 +331,7 @@
       enemies = templates.map((t, i) => makeEnemy(t, ...spawnPoints[i]));
       allies = []; pickups = []; projectiles = []; effects = []; messages = []; reinforcements = { 魏: 0, 吴: 0 }; defeated = 0; captureArmed = false; markedEnemy = enemies[Math.floor(Math.random() * enemies.length)];
       bases.forEach(base => { base.hp = base.maxHp; base.timer = 0; base.destroyed = false; });
-      running = true; result.classList.remove('show'); note('红色光标锁定攻击目标。击倒后按 6 拖回白帝营，20 秒后可转为己方。');
+      running = true; result.classList.remove('show'); note('红色光标锁定攻击目标。点击倒地机甲即可牵引，拖回白帝营满血复活。');
     }
     function makeEnemy(t, x = 900, y = 260) { return { ...t, x, y, r: t.elite ? 38 : 31, hp: 100, maxHp: 100, timer: 1 + Math.random(), hit: 0, downed: false, towing: null, carrier: null, conversion: 0, unattended: 0 }; }
     function activeEnemies() { return enemies.filter(enemy => !enemy.downed); }
@@ -400,16 +375,22 @@
     const captureKeys = { q: 'weiGuardian', w: 'weiLancer', e: 'wuRaider', r: 'wuArcher', t: 'lubu' };
     function toggleTow() {
       if (player.towing) { note('赵云正在牵引一台机甲，请先送至白帝营中央满血复活。'); return; }
-      captureArmed = true; note('<span>远程夺取已准备</span>：按 Q 曹仁、W 夏侯惇、E 甘宁、R 孙尚香、T 吕布。');
+      captureArmed = true; note('<span>远程牵引已准备</span>：键盘按 Q 曹仁、W 夏侯惇、E 甘宁、R 孙尚香、T 吕布。');
+    }
+    function downedUnitAt(point) {
+      return [...enemies, ...allies].filter(unit => unit.downed && Math.hypot(unit.x - point.x, unit.y - point.y) < unit.r * 2.8).reduce((best, unit) => !best || dist(point, unit) < dist(point, best) ? unit : best, null);
+    }
+    function claimDownedUnit(unit) {
+      if (player.towing && player.towing !== unit) { note('赵云已经牵引一台机甲，请先拖回白帝营中央满血复活。'); return; }
+      if (unit.carrier && unit.carrier !== player) release(unit.carrier);
+      captureArmed = false; unit.remoteClaimed = false; tow(player, unit);
+      note(`<span>牵引成功</span>：${unit.name} 已接到赵云身后，请拖至白帝营正中央满血复活。`);
     }
     function captureByKey(key) {
       if (!captureArmed) return;
       const sprite = captureKeys[key]; const unit = enemies.filter(enemy => enemy.downed && !enemy.remoteClaimed && enemy.sprite === sprite).reduce((best, enemy) => !best || dist(player, enemy) < dist(player, best) ? enemy : best, null);
-      captureArmed = false;
-      if (!unit) { note('该型号目前没有倒地机甲可夺取。'); return; }
-      if (unit.carrier) release(unit.carrier);
-      unit.remoteClaimed = false; tow(player, unit);
-      note(`<span>远程牵引成功</span>：${unit.name} 已接到赵云身后，请拖至白帝营正中央满血复活。`);
+      if (!unit) { captureArmed = false; note('该型号目前没有倒地机甲可牵引。'); return; }
+      claimDownedUnit(unit);
     }
     function followCarrier(carrier, unit) { const angle = Math.atan2(carrier.y - unit.y, carrier.x - unit.x); unit.x = carrier.x - Math.cos(angle) * (carrier.r + unit.r + 12); unit.y = carrier.y - Math.sin(angle) * (carrier.r + unit.r + 12); }
     function healAtBase(unit, base, dt) { const owner = unit.faction === '群' ? '魏' : unit.faction; if (!unit.downed && !base.destroyed && base.faction === owner && dist(unit, base) < base.r + 65) unit.hp = Math.min(unit.maxHp, unit.hp + 50 * dt); }
@@ -424,6 +405,7 @@
     function update(dt) {
       elapsed += dt; if (!running) return;
       let dx = (keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0), dy = (keys.has('ArrowDown') ? 1 : 0) - (keys.has('ArrowUp') ? 1 : 0);
+      if (pointerTarget && !dx && !dy) { dx = pointerTarget.x - player.x; dy = pointerTarget.y - player.y; if (Math.hypot(dx, dy) < 5) { dx = 0; dy = 0; } }
       const boosting = keys.has('5') && player.boostFuel > 0 && (dx || dy); if (boosting) player.boostFuel = Math.max(0, player.boostFuel - dt);
       if (dx || dy) { const len = Math.hypot(dx, dy); dx /= len; dy /= len; const speed = 215 * (boosting ? 1.8 : 1); player.x = Math.max(48, Math.min(W - 48, player.x + dx * speed * dt)); player.y = Math.max(74, Math.min(H - 48, player.y + dy * speed * dt)); player.angle = Math.atan2(dy, dx); }
       player.guard = Math.max(0, player.guard - dt); player.attackBuff = Math.max(0, player.attackBuff - dt); player.defenseBuff = Math.max(0, player.defenseBuff - dt); player.hit = Math.max(0, player.hit - dt); flash = Math.max(0, flash - dt); Object.keys(player.cooldowns).forEach(k => player.cooldowns[k] = Math.max(0, player.cooldowns[k] - dt));
@@ -568,16 +550,10 @@
       const towed = player.towing; const campDistance = towed ? dist(player, baseFor('蜀')) : 0;
       growthFill.style.width = `${towed ? Math.max(0, 100 - campDistance / 4) : (markedEnemy ? (markedEnemy.hp / markedEnemy.maxHp) * 100 : 0)}%`; growthReadout.textContent = captureArmed ? '夺取选择：Q 曹仁 · W 夏侯惇 · E 甘宁 · R 孙尚香 · T 吕布' : (towed ? `拖运：${towed.name} · 前往白帝营营心复活` : (markedEnemy ? `${markedEnemy.name} · 攻击 ${player.attackBuff.toFixed(0)}s / 防御 ${player.defenseBuff.toFixed(0)}s` : '正在分配新的攻击目标…'));
       boostFill.style.width = `${player.boostFuel / 20 * 100}%`; boostReadout.textContent = `推进 ${player.boostFuel.toFixed(1)}s`;
-      skillEls.forEach(el => { const n=el.dataset.action; el.classList.toggle('active', (n==='2' && player.guard>0) || (n==='5' && keys.has('5') && player.boostFuel>0)); el.classList.toggle('cooldown', n !== '5' && player.cooldowns[n]>0); });
+      virtualKeys.forEach(el => { const n=el.dataset.key; el.classList.toggle('active', (n==='2' && player.guard>0) || (n==='5' && keys.has('5') && player.boostFuel>0)); el.classList.toggle('cooldown', ['1','2','3','4'].includes(n) && player.cooldowns[n]>0); });
     }
     function loop(now) { const dt=Math.min(.04,(now-last)/1000);last=now;update(dt);render();requestAnimationFrame(loop); }
 
-    function nudgePlayer(key) {
-      if (!running) return;
-      const moves = { ArrowUp: [0, -34], ArrowDown: [0, 34], ArrowLeft: [-34, 0], ArrowRight: [34, 0] };
-      const move = moves[key]; if (!move) return;
-      player.x = Math.max(48, Math.min(W - 48, player.x + move[0])); player.y = Math.max(74, Math.min(H - 48, player.y + move[1])); player.angle = Math.atan2(move[1], move[0]);
-    }
     function runCommand(key) {
       if (['1','2','3','4'].includes(key)) action(key);
       if (key === '6') toggleTow();
@@ -587,14 +563,12 @@
     }
     function startVirtualKey(event) {
       const key = event.currentTarget.dataset.key; event.preventDefault();
-      if (key.startsWith('Arrow') || key === '5') {
-        event.currentTarget.setPointerCapture(event.pointerId); heldPointers.set(event.pointerId, { key, started: performance.now() }); keys.add(key);
+      if (key === '5') {
+        event.currentTarget.setPointerCapture(event.pointerId); keys.add(key);
       } else runCommand(key);
     }
     function stopVirtualKey(event) {
-      const held = heldPointers.get(event.pointerId); if (!held) return;
-      heldPointers.delete(event.pointerId); keys.delete(held.key);
-      if (held.key.startsWith('Arrow') && performance.now() - held.started < 180) nudgePlayer(held.key);
+      if (event.currentTarget.dataset.key === '5') keys.delete('5');
     }
     virtualKeys.forEach(button => {
       button.addEventListener('pointerdown', startVirtualKey);
@@ -602,13 +576,33 @@
       button.addEventListener('pointercancel', stopVirtualKey);
       button.addEventListener('lostpointercapture', stopVirtualKey);
     });
+    function canvasPoint(event) { const rect = canvas.getBoundingClientRect(); return { x: (event.clientX - rect.left) * W / rect.width, y: (event.clientY - rect.top) * H / rect.height }; }
+    function canvasPointerDown(event) {
+      if (!running) return; const point = canvasPoint(event), unit = downedUnitAt(point); event.preventDefault();
+      if (unit) { claimedPointerId = event.pointerId; canvas.setPointerCapture(event.pointerId); claimDownedUnit(unit); return; }
+      pointerTarget = point;
+      if (event.pointerType !== 'mouse') { touchPointerId = event.pointerId; canvas.setPointerCapture(event.pointerId); }
+    }
+    function canvasPointerMove(event) {
+      if (!running || event.pointerId === claimedPointerId) return;
+      if (event.pointerType === 'mouse' || event.pointerId === touchPointerId) pointerTarget = canvasPoint(event);
+    }
+    function canvasPointerUp(event) {
+      if (event.pointerId === claimedPointerId) { claimedPointerId = null; return; }
+      if (event.pointerId === touchPointerId) { touchPointerId = null; pointerTarget = null; }
+    }
+    canvas.addEventListener('pointerdown', canvasPointerDown);
+    canvas.addEventListener('pointermove', canvasPointerMove);
+    canvas.addEventListener('pointerup', canvasPointerUp);
+    canvas.addEventListener('pointercancel', canvasPointerUp);
+    canvas.addEventListener('pointerleave', event => { if (event.pointerType === 'mouse') pointerTarget = null; });
     window.addEventListener('keydown', e => {
       if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','1','2','3','4','5','6','q','Q','w','W','e','E','r','R','t','T'].includes(e.key)) e.preventDefault();
       if (e.key.startsWith('Arrow') || e.key === '5') keys.add(e.key);
       else if (!e.repeat) runCommand(e.key);
     });
     window.addEventListener('keyup', e => keys.delete(e.key));
-    window.addEventListener('blur', () => keys.clear());
+    window.addEventListener('blur', () => { keys.clear(); pointerTarget = null; touchPointerId = null; claimedPointerId = null; });
     reset(); requestAnimationFrame(loop);
   </script>
 </body>
