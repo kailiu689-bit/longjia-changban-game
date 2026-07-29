@@ -95,6 +95,7 @@
     .game-frame::before { left: 9px; top: 9px; border-width: 1px 0 0 1px; }
     .game-frame::after { right: 9px; bottom: 9px; border-width: 0 1px 1px 0; }
     canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #101920; cursor: crosshair; touch-action: none; }
+    .game-frame.mode-1 canvas { cursor: default; }
 
     .hud {
       position: absolute;
@@ -155,6 +156,30 @@
     }
     .event-log span { color: var(--gold); }
 
+    .input-mode {
+      position: absolute;
+      z-index: 5;
+      right: 18px;
+      bottom: 188px;
+      display: grid;
+      grid-template-columns: auto 58px auto;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px 7px;
+      border: 1px solid rgba(232,215,173,.28);
+      background: rgba(8,13,18,.8);
+      color: #c4d1cd;
+      font: 700 10px ui-monospace, monospace;
+      letter-spacing: .04em;
+      user-select: none;
+    }
+    .mode-switch { position: relative; width: 58px; height: 28px; border: 1px solid rgba(232,215,173,.48); border-radius: 999px; background: rgba(244,196,109,.18); cursor: pointer; }
+    .mode-switch span { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px rgba(244,196,109,.55); transition: transform .18s, background .18s; }
+    .game-frame.mode-2 .mode-switch { background: rgba(57,216,203,.18); }
+    .game-frame.mode-2 .mode-switch span { transform: translateX(28px); background: var(--jade); box-shadow: 0 0 10px rgba(57,216,203,.55); }
+    .mode-readout { grid-column: 1 / -1; color: #9daeb0; font-size: 9px; text-align: center; }
+    .mode-readout.paused { color: var(--gold); }
+
     .mouse-controls {
       position: absolute;
       z-index: 5;
@@ -185,6 +210,7 @@
     .virtual-key:hover, .virtual-key:active { border-color: var(--jade); color: #fff; background: rgba(57,216,203,.2); box-shadow: 0 0 13px rgba(57,216,203,.24); }
     .virtual-key.active { border-color: var(--jade); color: #fff; background: rgba(57,216,203,.24); box-shadow: 0 0 18px rgba(57,216,203,.32); }
     .virtual-key.cooldown { opacity: .46; }
+    .game-frame.mode-1 .mouse-controls { opacity: .38; filter: grayscale(1); pointer-events: none; }
 
     .result {
       position: absolute;
@@ -231,6 +257,7 @@
       .bar { margin-top: 4px; width: 120px; height: 6px; }
       .controls { grid-template-columns: 1fr; }
       .mouse-controls { right: 8px; bottom: 52px; transform: scale(.72); transform-origin: bottom right; }
+      .input-mode { right: 8px; bottom: 149px; transform: scale(.72); transform-origin: bottom right; }
     }
   </style>
 </head>
@@ -244,7 +271,7 @@
       <p class="mission">公元 219 年，三方大本营对峙。驾驶「白龙」人形机甲，在魏、吴敌机的自主追击中成长。</p>
     </header>
 
-    <section class="game-frame" aria-label="龙甲三国机甲游戏">
+    <section class="game-frame mode-1" id="game-frame" aria-label="龙甲三国机甲游戏">
       <canvas id="game" width="1280" height="720"></canvas>
       <div class="hud">
         <div class="pilot">
@@ -256,10 +283,14 @@
       </div>
       <div class="growth-status"><div class="growth-label">攻击目标</div><div class="bar"><div id="growth-fill"></div></div><div id="growth-readout">正在分配目标…</div><div class="boost-line"><span id="boost-readout">推进 20.0s</span><div class="bar"><div id="boost-fill"></div></div></div></div>
       <div class="event-log" id="event-log">战域接入完成。<span>鼠标或手指</span>引导赵云移动，准备迎敌。</div>
+      <div class="input-mode" aria-label="输入模式切换">
+        <span>模式 1 · 键盘</span><button class="mode-switch" id="mode-switch" type="button" aria-label="切换输入模式" aria-pressed="false"><span></span></button><span>模式 2 · 触控</span>
+        <div class="mode-readout" id="mode-readout">当前：键盘控制</div>
+      </div>
       <div class="mouse-controls" aria-label="鼠标操作控制台">
         <div class="mouse-controls-label">六键战术面板</div>
         <div class="virtual-actions">
-          <button class="virtual-key" data-key="1">1<small>突击</small></button><button class="virtual-key" data-key="2">2<small>防御</small></button><button class="virtual-key" data-key="3">3<small>拔剑</small></button><button class="virtual-key" data-key="4">4<small>射箭</small></button><button class="virtual-key" data-key="5">5<small>加速</small></button><button class="virtual-key" data-key="6">6<small>牵引</small></button>
+          <button class="virtual-key" data-key="1">1<small>突击</small></button><button class="virtual-key" data-key="2">2<small>防御</small></button><button class="virtual-key" data-key="3">3<small>拔剑</small></button><button class="virtual-key" data-key="4">4<small>射箭</small></button><button class="virtual-key" data-key="5">5<small>加速</small></button><button class="virtual-key" data-key="6">6<small>放开</small></button>
         </div>
       </div>
       <div class="result" id="result">
@@ -272,7 +303,7 @@
     </section>
 
     <section class="controls" aria-label="操作说明">
-      <div class="control-note"><strong>驾驶操作</strong><br>电脑端在战场内移动鼠标，赵云会跟随光标；手机端用手指拖动。点击任意<strong>倒地机甲</strong>即可牵引，敌我双方均可拖回白帝营复活。键盘操作保持不变：<strong>↑ ↓ ← →</strong> 移动，按 <strong>6</strong> 后再按 <strong>Q W E R T</strong> 牵引对应敌机。</div>
+      <div class="control-note"><strong>驾驶操作</strong><br>拨动战场右下角的模式开关：<strong>模式 1</strong> 仅用键盘 <strong>↑ ↓ ← →、1–6、Q W E R T</strong>；<strong>模式 2</strong> 用鼠标/手指、六个圆形按键和点击倒地机甲操作。模式 2 下按 <strong>0</strong>，赵云会暂停跟随鼠标或手指 <strong>15 秒</strong>。</div>
     </section>
     <footer>战斗记录自动同步 · 玄甲司机巧局</footer>
   </main>
@@ -291,9 +322,12 @@
     const result = document.getElementById('result');
     const resultTitle = document.getElementById('result-title');
     const resultText = document.getElementById('result-text');
+    const gameFrame = document.getElementById('game-frame');
+    const modeSwitch = document.getElementById('mode-switch');
+    const modeReadout = document.getElementById('mode-readout');
     const virtualKeys = [...document.querySelectorAll('.virtual-key')];
     const keys = new Set();
-    let pointerTarget = null, touchPointerId = null, claimedPointerId = null;
+    let pointerTarget = null, touchPointerId = null, claimedPointerId = null, inputMode = 1, pointerPause = 0;
     let last = performance.now(), running = true, elapsed = 0, flash = 0;
     const zhaoSprite = new Image();
     zhaoSprite.src = 'assets/mech-three-kingdoms/zhaoyun-silver-rider.png';
@@ -373,6 +407,10 @@
     function tow(carrier, unit) { carrier.towing = unit; unit.carrier = carrier; unit.conversion = 0; unit.unattended = 0; }
     function release(carrier) { if (carrier.towing) { carrier.towing.carrier = null; carrier.towing.conversion = 0; carrier.towing.unattended = 0; carrier.towing = null; } }
     const captureKeys = { q: 'weiGuardian', w: 'weiLancer', e: 'wuRaider', r: 'wuArcher', t: 'lubu' };
+    function releasePlayerTow() {
+      if (!player.towing) { note('当前没有牵引机甲，请直接点击一台倒地机甲。'); return; }
+      const unit = player.towing; release(player); note(`<span>${unit.name}</span> 已放开，将在无人拖运 10 秒后自动销毁。`);
+    }
     function toggleTow() {
       if (player.towing) { note('赵云正在牵引一台机甲，请先送至白帝营中央满血复活。'); return; }
       captureArmed = true; note('<span>远程牵引已准备</span>：键盘按 Q 曹仁、W 夏侯惇、E 甘宁、R 孙尚香、T 吕布。');
@@ -404,8 +442,9 @@
     function destroyUnattended(unit) { if (unit.carrier) release(unit.carrier); enemies = enemies.filter(enemy => enemy !== unit); allies = allies.filter(ally => ally !== unit); if (markedEnemy === unit) markedEnemy = null; note(`<span>${unit.name}</span> 无人拖运超过 10 秒，已自动销毁。`); }
     function update(dt) {
       elapsed += dt; if (!running) return;
-      let dx = (keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0), dy = (keys.has('ArrowDown') ? 1 : 0) - (keys.has('ArrowUp') ? 1 : 0);
-      if (pointerTarget && !dx && !dy) { dx = pointerTarget.x - player.x; dy = pointerTarget.y - player.y; if (Math.hypot(dx, dy) < 5) { dx = 0; dy = 0; } }
+      pointerPause = Math.max(0, pointerPause - dt);
+      let dx = inputMode === 1 ? (keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0) : 0, dy = inputMode === 1 ? (keys.has('ArrowDown') ? 1 : 0) - (keys.has('ArrowUp') ? 1 : 0) : 0;
+      if (inputMode === 2 && pointerPause <= 0 && pointerTarget) { dx = pointerTarget.x - player.x; dy = pointerTarget.y - player.y; if (Math.hypot(dx, dy) < 5) { dx = 0; dy = 0; } }
       const boosting = keys.has('5') && player.boostFuel > 0 && (dx || dy); if (boosting) player.boostFuel = Math.max(0, player.boostFuel - dt);
       if (dx || dy) { const len = Math.hypot(dx, dy); dx /= len; dy /= len; const speed = 215 * (boosting ? 1.8 : 1); player.x = Math.max(48, Math.min(W - 48, player.x + dx * speed * dt)); player.y = Math.max(74, Math.min(H - 48, player.y + dy * speed * dt)); player.angle = Math.atan2(dy, dx); }
       player.guard = Math.max(0, player.guard - dt); player.attackBuff = Math.max(0, player.attackBuff - dt); player.defenseBuff = Math.max(0, player.defenseBuff - dt); player.hit = Math.max(0, player.hit - dt); flash = Math.max(0, flash - dt); Object.keys(player.cooldowns).forEach(k => player.cooldowns[k] = Math.max(0, player.cooldowns[k] - dt));
@@ -551,18 +590,31 @@
       growthFill.style.width = `${towed ? Math.max(0, 100 - campDistance / 4) : (markedEnemy ? (markedEnemy.hp / markedEnemy.maxHp) * 100 : 0)}%`; growthReadout.textContent = captureArmed ? '夺取选择：Q 曹仁 · W 夏侯惇 · E 甘宁 · R 孙尚香 · T 吕布' : (towed ? `拖运：${towed.name} · 前往白帝营营心复活` : (markedEnemy ? `${markedEnemy.name} · 攻击 ${player.attackBuff.toFixed(0)}s / 防御 ${player.defenseBuff.toFixed(0)}s` : '正在分配新的攻击目标…'));
       boostFill.style.width = `${player.boostFuel / 20 * 100}%`; boostReadout.textContent = `推进 ${player.boostFuel.toFixed(1)}s`;
       virtualKeys.forEach(el => { const n=el.dataset.key; el.classList.toggle('active', (n==='2' && player.guard>0) || (n==='5' && keys.has('5') && player.boostFuel>0)); el.classList.toggle('cooldown', ['1','2','3','4'].includes(n) && player.cooldowns[n]>0); });
+      modeReadout.textContent = inputMode === 1 ? '当前：键盘控制' : (pointerPause > 0 ? `输入暂停：${Math.ceil(pointerPause)} 秒` : '当前：鼠标 / 手指控制');
+      modeReadout.classList.toggle('paused', inputMode === 2 && pointerPause > 0);
     }
     function loop(now) { const dt=Math.min(.04,(now-last)/1000);last=now;update(dt);render();requestAnimationFrame(loop); }
 
     function runCommand(key) {
       if (['1','2','3','4'].includes(key)) action(key);
-      if (key === '6') toggleTow();
+      if (key === '6') inputMode === 2 ? releasePlayerTow() : toggleTow();
       const lower = key.toLowerCase();
       if (captureKeys[lower]) captureByKey(lower);
       if (lower === 'r' && !running) reset();
     }
+    function setInputMode(mode) {
+      inputMode = mode; keys.clear(); pointerTarget = null; touchPointerId = null; claimedPointerId = null; pointerPause = 0;
+      gameFrame.classList.toggle('mode-1', mode === 1); gameFrame.classList.toggle('mode-2', mode === 2);
+      modeSwitch.setAttribute('aria-pressed', String(mode === 2));
+      note(mode === 1 ? '<span>模式 1 已启动</span>：请使用键盘控制赵云。' : '<span>模式 2 已启动</span>：移动鼠标或拖动手指控制赵云，点击倒地机甲即可牵引。');
+    }
+    function pausePointerFollow() {
+      if (inputMode !== 2) { note('当前为模式 1，请拨到模式 2 后再使用 0 暂停输入。'); return; }
+      pointerPause = 15; note('<span>鼠标 / 手指输入已暂停</span>：赵云将在 15 秒后恢复跟随。');
+    }
     function startVirtualKey(event) {
       const key = event.currentTarget.dataset.key; event.preventDefault();
+      if (inputMode !== 2) { note('当前为模式 1，请拨到模式 2 后使用圆形按键。'); return; }
       if (key === '5') {
         event.currentTarget.setPointerCapture(event.pointerId); keys.add(key);
       } else runCommand(key);
@@ -578,13 +630,13 @@
     });
     function canvasPoint(event) { const rect = canvas.getBoundingClientRect(); return { x: (event.clientX - rect.left) * W / rect.width, y: (event.clientY - rect.top) * H / rect.height }; }
     function canvasPointerDown(event) {
-      if (!running) return; const point = canvasPoint(event), unit = downedUnitAt(point); event.preventDefault();
+      if (!running || inputMode !== 2 || pointerPause > 0) return; const point = canvasPoint(event), unit = downedUnitAt(point); event.preventDefault();
       if (unit) { claimedPointerId = event.pointerId; canvas.setPointerCapture(event.pointerId); claimDownedUnit(unit); return; }
       pointerTarget = point;
       if (event.pointerType !== 'mouse') { touchPointerId = event.pointerId; canvas.setPointerCapture(event.pointerId); }
     }
     function canvasPointerMove(event) {
-      if (!running || event.pointerId === claimedPointerId) return;
+      if (!running || inputMode !== 2 || event.pointerId === claimedPointerId) return;
       if (event.pointerType === 'mouse' || event.pointerId === touchPointerId) pointerTarget = canvasPoint(event);
     }
     function canvasPointerUp(event) {
@@ -596,12 +648,15 @@
     canvas.addEventListener('pointerup', canvasPointerUp);
     canvas.addEventListener('pointercancel', canvasPointerUp);
     canvas.addEventListener('pointerleave', event => { if (event.pointerType === 'mouse') pointerTarget = null; });
+    modeSwitch.addEventListener('click', () => setInputMode(inputMode === 1 ? 2 : 1));
     window.addEventListener('keydown', e => {
+      if (e.key === '0' && !e.repeat) { e.preventDefault(); pausePointerFollow(); return; }
+      if (inputMode !== 1) return;
       if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','1','2','3','4','5','6','q','Q','w','W','e','E','r','R','t','T'].includes(e.key)) e.preventDefault();
       if (e.key.startsWith('Arrow') || e.key === '5') keys.add(e.key);
       else if (!e.repeat) runCommand(e.key);
     });
-    window.addEventListener('keyup', e => keys.delete(e.key));
+    window.addEventListener('keyup', e => { if (inputMode === 1) keys.delete(e.key); });
     window.addEventListener('blur', () => { keys.clear(); pointerTarget = null; touchPointerId = null; claimedPointerId = null; });
     reset(); requestAnimationFrame(loop);
   </script>
