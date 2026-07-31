@@ -164,20 +164,23 @@
       display: grid;
       grid-template-columns: auto 58px auto;
       align-items: center;
-      gap: 8px;
-      padding: 8px 10px 7px;
-      border: 1px solid rgba(232,215,173,.28);
-      background: rgba(8,13,18,.8);
-      color: #c4d1cd;
-      font: 700 10px ui-monospace, monospace;
-      letter-spacing: .04em;
+      gap: 5px;
+      padding: 5px 7px 4px;
+      border: 1px solid rgba(232,215,173,.14);
+      background: rgba(8,13,18,.52);
+      color: #829493;
+      font: 700 8px ui-monospace, monospace;
+      letter-spacing: .02em;
+      opacity: .68;
+      transition: opacity .18s, background .18s;
       user-select: none;
     }
-    .mode-switch { position: relative; width: 58px; height: 28px; border: 1px solid rgba(232,215,173,.48); border-radius: 999px; background: rgba(244,196,109,.18); cursor: pointer; }
-    .mode-switch span { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px rgba(244,196,109,.55); transition: transform .18s, background .18s; }
-    .game-frame.mode-2 .mode-switch { background: rgba(57,216,203,.18); }
-    .game-frame.mode-2 .mode-switch span { transform: translateX(28px); background: var(--jade); box-shadow: 0 0 10px rgba(57,216,203,.55); }
-    .mode-readout { grid-column: 1 / -1; color: #9daeb0; font-size: 9px; text-align: center; }
+    .input-mode:hover, .input-mode:focus-within { opacity: .95; background: rgba(8,13,18,.75); }
+    .mode-switch { position: relative; width: 40px; height: 18px; border: 1px solid rgba(232,215,173,.25); border-radius: 999px; background: rgba(244,196,109,.12); cursor: pointer; }
+    .mode-switch span { position: absolute; top: 3px; left: 3px; width: 10px; height: 10px; border-radius: 50%; background: rgba(244,196,109,.85); box-shadow: 0 0 6px rgba(244,196,109,.3); transition: transform .18s, background .18s; }
+    .game-frame.mode-2 .mode-switch { background: rgba(57,216,203,.12); }
+    .game-frame.mode-2 .mode-switch span { transform: translateX(20px); background: rgba(57,216,203,.85); box-shadow: 0 0 6px rgba(57,216,203,.3); }
+    .mode-readout { grid-column: 1 / -1; color: #7f9090; font-size: 8px; text-align: center; }
     .mode-readout.paused { color: var(--gold); }
 
     .mouse-controls {
@@ -303,7 +306,7 @@
     </section>
 
     <section class="controls" aria-label="操作说明">
-      <div class="control-note"><strong>驾驶操作</strong><br>拨动战场右下角的模式开关：<strong>模式 1</strong> 仅用键盘 <strong>↑ ↓ ← →、1–6、Q W E R T</strong>；<strong>模式 2</strong> 用鼠标/手指、六个圆形按键和点击倒地机甲操作。模式 2 下按 <strong>0</strong>，赵云会暂停跟随鼠标或手指 <strong>15 秒</strong>。</div>
+      <div class="control-note"><strong>驾驶操作</strong><br>拨动战场右下角的模式开关：<strong>模式 1</strong> 仅用键盘 <strong>↑ ↓ ← →、1–6、Q W E R T</strong>；<strong>模式 2</strong> 用鼠标/手指、六个圆形按键和点击倒地机甲操作。模式 2 下按 <strong>0</strong>，赵云会暂停跟随鼠标或手指 <strong>5 秒</strong>。</div>
     </section>
     <footer>战斗记录自动同步 · 玄甲司机巧局</footer>
   </main>
@@ -610,7 +613,7 @@
     }
     function pausePointerFollow() {
       if (inputMode !== 2) { note('当前为模式 1，请拨到模式 2 后再使用 0 暂停输入。'); return; }
-      pointerPause = 15; note('<span>鼠标 / 手指输入已暂停</span>：赵云将在 15 秒后恢复跟随。');
+      pointerPause = 5; note('<span>鼠标 / 手指输入已暂停</span>：赵云将在 5 秒后恢复跟随。');
     }
     function startVirtualKey(event) {
       const key = event.currentTarget.dataset.key; event.preventDefault();
