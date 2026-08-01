@@ -96,6 +96,22 @@
     .game-frame::after { right: 9px; bottom: 9px; border-width: 0 1px 1px 0; }
     canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #101920; cursor: crosshair; touch-action: none; }
     .game-frame.mode-1 canvas { cursor: default; }
+    .restart-icon {
+      position: absolute;
+      z-index: 8;
+      top: 76px;
+      right: 23px;
+      width: 34px;
+      height: 34px;
+      border: 1px solid rgba(232,215,173,.4);
+      border-radius: 50%;
+      color: #cddfd9;
+      background: rgba(8,13,18,.64);
+      box-shadow: 0 4px 16px rgba(0,0,0,.28);
+      font: 700 22px/1 ui-monospace, monospace;
+      cursor: pointer;
+    }
+    .restart-icon:hover, .restart-icon:focus-visible { color: #fff; border-color: var(--jade); background: rgba(57,216,203,.2); outline: none; }
 
     .hud {
       position: absolute;
@@ -261,6 +277,7 @@
       .controls { grid-template-columns: 1fr; }
       .mouse-controls { right: 8px; bottom: 52px; transform: scale(.72); transform-origin: bottom right; }
       .input-mode { right: 8px; bottom: 149px; transform: scale(.72); transform-origin: bottom right; }
+      .restart-icon { top: 57px; right: 14px; transform: scale(.82); transform-origin: top right; }
     }
   </style>
 </head>
@@ -276,6 +293,7 @@
 
     <section class="game-frame mode-1" id="game-frame" aria-label="龙甲三国机甲游戏">
       <canvas id="game" width="1280" height="720"></canvas>
+      <button class="restart-icon" id="restart-icon" type="button" aria-label="重新开始战斗" title="重新开始">↻</button>
       <div class="hud">
         <div class="pilot">
           <div class="pilot-title">蜀 · 赵云「白龙」</div>
@@ -293,20 +311,20 @@
       <div class="mouse-controls" aria-label="鼠标操作控制台">
         <div class="mouse-controls-label">六键战术面板</div>
         <div class="virtual-actions">
-          <button class="virtual-key" data-key="1">1<small>突击</small></button><button class="virtual-key" data-key="2">2<small>防御</small></button><button class="virtual-key" data-key="3">3<small>拔剑</small></button><button class="virtual-key" data-key="4">4<small>射箭</small></button><button class="virtual-key" data-key="5">5<small>加速</small></button><button class="virtual-key" data-key="6">6<small>放开</small></button>
+          <button class="virtual-key" data-key="1">1<small>突击</small></button><button class="virtual-key" data-key="2">2<small>防御</small></button><button class="virtual-key" data-key="3">3<small>拔剑</small></button><button class="virtual-key" data-key="4">4<small>射箭</small></button><button class="virtual-key" data-key="5">5<small>加速</small></button><button class="virtual-key" data-key="6">6<small>拖运</small></button>
         </div>
       </div>
       <div class="result" id="result">
         <div class="result-card">
           <h2 id="result-title">凯旋</h2>
           <p id="result-text">白龙穿阵，长坂无双。</p>
-          <div class="restart">按 R 键 · 再战一场</div>
+          <div class="restart">点击右上角 ↻ · 或按 R 键再战</div>
         </div>
       </div>
     </section>
 
     <section class="controls" aria-label="操作说明">
-      <div class="control-note"><strong>驾驶操作</strong><br>拨动战场右下角的模式开关：<strong>模式 1</strong> 仅用键盘 <strong>↑ ↓ ← →、1–6、Q W E R T</strong>；<strong>模式 2</strong> 用鼠标/手指、六个圆形按键和点击倒地机甲操作。模式 2 下按 <strong>0</strong>，赵云会暂停跟随鼠标或手指 <strong>5 秒</strong>。</div>
+      <div class="control-note"><strong>驾驶操作</strong><br>拨动战场右下角的模式开关：<strong>模式 1</strong> 仅用键盘 <strong>↑ ↓ ← →、1–6、Q W E R T</strong>；<strong>模式 2</strong> 用鼠标/手指和六个圆形按键操作。按 <strong>6</strong> 后，点击任意倒地机甲即可拖运；键盘可用 <strong>Q W E R T</strong> 选择同型号机甲。模式 2 下按 <strong>0</strong>，赵云会暂停跟随鼠标或手指 <strong>5 秒</strong>。</div>
     </section>
     <footer>战斗记录自动同步 · 玄甲司机巧局</footer>
   </main>
@@ -326,6 +344,7 @@
     const resultTitle = document.getElementById('result-title');
     const resultText = document.getElementById('result-text');
     const gameFrame = document.getElementById('game-frame');
+    const restartIcon = document.getElementById('restart-icon');
     const modeSwitch = document.getElementById('mode-switch');
     const modeReadout = document.getElementById('mode-readout');
     const virtualKeys = [...document.querySelectorAll('.virtual-key')];
@@ -363,12 +382,13 @@
     let enemies, allies, pickups, projectiles, effects, messages, reinforcements, defeated, markedEnemy, captureArmed;
 
     function reset() {
+      elapsed = 0; keys.clear(); pointerTarget = null; touchPointerId = null; claimedPointerId = null; pointerPause = 0;
       Object.assign(player, { x: 345, y: 410, r: 29, hp: 100, guard: 0, hit: 0, attackBuff: 0, defenseBuff: 0, boostFuel: 20, towing: null });
       player.cooldowns = { 1: 0, 2: 0, 3: 0, 4: 0 };
       enemies = templates.map((t, i) => makeEnemy(t, ...spawnPoints[i]));
       allies = []; pickups = []; projectiles = []; effects = []; messages = []; reinforcements = { 魏: 0, 吴: 0 }; defeated = 0; captureArmed = false; markedEnemy = enemies[Math.floor(Math.random() * enemies.length)];
       bases.forEach(base => { base.hp = base.maxHp; base.timer = 0; base.destroyed = false; });
-      running = true; result.classList.remove('show'); note('红色光标锁定攻击目标。点击倒地机甲即可牵引，拖回白帝营满血复活。');
+      running = true; result.classList.remove('show'); note('红色光标锁定攻击目标。按 6 后选择倒地机甲，拖回白帝营满血复活。');
     }
     function makeEnemy(t, x = 900, y = 260) { return { ...t, x, y, r: t.elite ? 38 : 31, hp: 100, maxHp: 100, timer: 1 + Math.random(), hit: 0, downed: false, towing: null, carrier: null, conversion: 0, unattended: 0 }; }
     function activeEnemies() { return enemies.filter(enemy => !enemy.downed); }
@@ -390,13 +410,19 @@
       if (unit === markedEnemy) { spawnPickup(Math.random() < .5 ? 'attack' : 'defense', unit.x, unit.y); markedEnemy = null; note(`<span>${unit.name}</span> 被击倒，掉落战术模块！`); }
       else note(`<span>${unit.name}</span> 被 ${source} 击倒，等待拖运。`);
     }
+    function enemyBasesDestroyed() { return bases.filter(base => base.faction !== '蜀').every(base => base.destroyed); }
+    function checkVictory() { if (running && enemyBasesDestroyed() && enemies.length === 0) finish(true); }
     function impact(target, amount, label, color = '#f5d77e') {
       if (!target || target.destroyed || target.downed) return; const damage = Math.round(amount * (player.attackBuff > 0 ? 1.5 : 1));
       target.hp = Math.max(0, target.hp - damage); target.hit = .18;
       effects.push({ type: 'burst', x: target.x, y: target.y, color, life: .32, max: .32 }); messages.push({ x: target.x, y: target.y - target.r - 16, text: `-${damage}`, color, life: .8 });
       note(`<span>${label}</span> 命中 ${target.faction ? `${target.faction} · ${target.name}` : target.name}，造成 ${damage} 点伤害。`);
       if (target.hp === 0 && target.kind !== 'base') downUnit(target, '赵云');
-      if (target.hp === 0 && target.kind === 'base') { target.destroyed = true; note(`<span>${target.faction} · ${target.name}</span> 已被摧毁！`); if (bases.filter(base => base.faction !== '蜀').every(base => base.destroyed)) finish(true); }
+      if (target.hp === 0 && target.kind === 'base') {
+        target.destroyed = true;
+        note(enemyBasesDestroyed() ? `<span>魏、吴两座大营已被摧毁</span>：请清剿战场剩余 ${enemies.length} 台敌机。` : `<span>${target.faction} · ${target.name}</span> 已被摧毁！`);
+        checkVictory();
+      }
     }
     function action(n) {
       if (!running || player.cooldowns[n] > 0) return; const target = attackTarget(); if (!target && n !== '2') return;
@@ -406,17 +432,17 @@
       if (n === '4') { cool(4, 1.7); projectiles.push({ x: player.x, y: player.y, target, speed: 510, life: 2.8, damage: 24, color: '#6ee8dc' }); note('<span>穿云射箭</span>发射，追踪箭矢已锁定敌机。'); }
     }
     function hurtPlayer(amount, source) { const actual = player.guard > 0 ? Math.ceil(amount * .25) : (player.defenseBuff > 0 ? Math.ceil(amount * .5) : amount); player.hp = Math.max(0, player.hp - actual); player.hit = .18; flash = .16; messages.push({ x: player.x, y: player.y - 52, text: `-${actual}`, color: '#ff775e', life: .75 }); note(`${source} 发动攻击，白龙承受 <span>${actual}</span> 点伤害。`); if (player.hp <= 0) finish(false); }
-    function finish(win = false) { if (!running) return; running = false; resultTitle.textContent = win ? '凯旋' : '折戟'; resultText.textContent = win ? '魏、吴两座大营已被摧毁，敌军增援中断。' : '白龙机甲受损，按 R 键重新接入战域。'; result.classList.add('show'); }
+    function finish(win = false) { if (!running) return; running = false; resultTitle.textContent = win ? '凯旋' : '折戟'; resultText.textContent = win ? '魏、吴两座大营已被摧毁，战场余敌已肃清。' : '白龙机甲受损，点击右上角 ↻ 或按 R 键重新接入战域。'; result.classList.add('show'); }
     function tow(carrier, unit) { carrier.towing = unit; unit.carrier = carrier; unit.conversion = 0; unit.unattended = 0; }
     function release(carrier) { if (carrier.towing) { carrier.towing.carrier = null; carrier.towing.conversion = 0; carrier.towing.unattended = 0; carrier.towing = null; } }
     const captureKeys = { q: 'weiGuardian', w: 'weiLancer', e: 'wuRaider', r: 'wuArcher', t: 'lubu' };
     function releasePlayerTow() {
-      if (!player.towing) { note('当前没有牵引机甲，请直接点击一台倒地机甲。'); return; }
+      if (!player.towing) { note('当前没有牵引机甲，请按 6 后选择一台倒地机甲。'); return; }
       const unit = player.towing; release(player); note(`<span>${unit.name}</span> 已放开，将在无人拖运 10 秒后自动销毁。`);
     }
     function toggleTow() {
-      if (player.towing) { note('赵云正在牵引一台机甲，请先送至白帝营中央满血复活。'); return; }
-      captureArmed = true; note('<span>远程牵引已准备</span>：键盘按 Q 曹仁、W 夏侯惇、E 甘宁、R 孙尚香、T 吕布。');
+      if (player.towing) { releasePlayerTow(); return; }
+      captureArmed = true; note('<span>拖运已准备</span>：点击任意倒地机甲；键盘可按 Q、W、E、R、T 选择同型号机甲。');
     }
     function downedUnitAt(point) {
       return [...enemies, ...allies].filter(unit => unit.downed && Math.hypot(unit.x - point.x, unit.y - point.y) < unit.r * 2.8).reduce((best, unit) => !best || dist(point, unit) < dist(point, best) ? unit : best, null);
@@ -429,7 +455,7 @@
     }
     function captureByKey(key) {
       if (!captureArmed) return;
-      const sprite = captureKeys[key]; const unit = enemies.filter(enemy => enemy.downed && !enemy.remoteClaimed && enemy.sprite === sprite).reduce((best, enemy) => !best || dist(player, enemy) < dist(player, best) ? enemy : best, null);
+      const sprite = captureKeys[key]; const unit = [...enemies, ...allies].filter(unit => unit.downed && !unit.remoteClaimed && unit.sprite === sprite).reduce((best, unit) => !best || dist(player, unit) < dist(player, best) ? unit : best, null);
       if (!unit) { captureArmed = false; note('该型号目前没有倒地机甲可牵引。'); return; }
       claimDownedUnit(unit);
     }
@@ -438,11 +464,11 @@
     function shouldRetreat(unit, base) { if (!base || base.destroyed) { unit.retreating = false; return false; } if (unit.hp <= unit.maxHp * .3) unit.retreating = true; if (unit.retreating && unit.hp >= unit.maxHp * .7) unit.retreating = false; return unit.retreating; }
     function convertUnit(unit, faction) {
       release(unit.carrier || { towing: unit }); unit.downed = false; unit.remoteClaimed = false; unit.unattended = 0; unit.hp = unit.maxHp; unit.conversion = 0; unit.color = baseFor(faction).color; unit.faction = faction;
-      if (faction === '蜀') { enemies = enemies.filter(enemy => enemy !== unit); unit.allied = true; if (!allies.includes(unit)) allies.push(unit); note(`<span>${unit.name}</span> 已满血复活为蜀军，能量光柱转为蓝色。`); }
+      if (faction === '蜀') { enemies = enemies.filter(enemy => enemy !== unit); unit.allied = true; if (!allies.includes(unit)) allies.push(unit); note(`<span>${unit.name}</span> 已满血复活为蜀军，能量光柱转为蓝色。`); checkVictory(); }
       else { unit.allied = false; note(`<span>${unit.name}</span> 已被 ${faction} 军转化。`); }
     }
-    function updateConversion(carrier, unit, base, faction, dt) { if (!unit || dist(carrier, base) > 24) return; convertUnit(unit, faction); }
-    function destroyUnattended(unit) { if (unit.carrier) release(unit.carrier); enemies = enemies.filter(enemy => enemy !== unit); allies = allies.filter(ally => ally !== unit); if (markedEnemy === unit) markedEnemy = null; note(`<span>${unit.name}</span> 无人拖运超过 10 秒，已自动销毁。`); }
+    function updateConversion(carrier, unit, base, faction, dt) { if (!unit || !base || base.destroyed || dist(carrier, base) > 24) return; convertUnit(unit, faction); }
+    function destroyUnattended(unit) { if (unit.carrier) release(unit.carrier); enemies = enemies.filter(enemy => enemy !== unit); allies = allies.filter(ally => ally !== unit); if (markedEnemy === unit) markedEnemy = null; note(`<span>${unit.name}</span> 无人拖运超过 10 秒，已自动销毁。`); checkVictory(); }
     function update(dt) {
       elapsed += dt; if (!running) return;
       pointerPause = Math.max(0, pointerPause - dt);
@@ -462,6 +488,7 @@
       enemies.forEach(e => {
         if (e.downed) return; e.hit = Math.max(0, e.hit - dt); e.timer -= dt;
         const home = baseFor(e.faction), casualty = [...enemies, ...allies].find(unit => unit.downed && !unit.carrier && !unit.remoteClaimed && unit.faction !== e.faction);
+        if (e.towing && home.destroyed) release(e);
         healAtBase(e, home, dt);
         const retreating = shouldRetreat(e, home);
         const hostile = [player, ...allies, ...activeEnemies().filter(unit => unit !== e && unit.faction !== e.faction)].reduce((best, unit) => !best || dist(e, unit) < dist(e, best) ? unit : best, null);
@@ -490,6 +517,7 @@
       for (let i = pickups.length - 1; i >= 0; i--) if (dist(player, pickups[i]) < player.r + pickups[i].r + 8) { collectPickup(pickups[i]); pickups.splice(i, 1); }
       projectiles = projectiles.filter(p => { p.life -= dt; if (!p.target || p.target.downed || p.target.destroyed || p.life <= 0) return false; const a = Math.atan2(p.target.y - p.y, p.target.x - p.x); p.x += Math.cos(a) * p.speed * dt; p.y += Math.sin(a) * p.speed * dt; if (dist(p, p.target) < p.target.r + 12) { impact(p.target, p.damage, '穿云射箭', '#6ee8dc'); return false; } return true; });
       effects = effects.filter(e => (e.life -= dt) > 0); messages = messages.filter(m => (m.life -= dt) > 0);
+      checkVictory();
     }
 
     function polygon(points, fill, stroke) { ctx.beginPath(); points.forEach((p, i) => i ? ctx.lineTo(...p) : ctx.moveTo(...p)); ctx.closePath(); if (fill) ctx.fillStyle = fill, ctx.fill(); if (stroke) ctx.strokeStyle = stroke, ctx.stroke(); }
@@ -588,9 +616,9 @@
       drawMech(player, true); drawEffects();
       if (flash > 0) { ctx.fillStyle=`rgba(255,75,55,${flash*.45})`;ctx.fillRect(0,0,W,H); }
       ctx.save();ctx.fillStyle='rgba(240,224,180,.38)';ctx.font='10px ui-monospace, monospace';ctx.fillText(`战域时间 ${elapsed.toFixed(1).padStart(5,'0')}s`,W-148,H-18);ctx.restore();
-      hpFill.style.width = `${player.hp}%`; enemyCount.textContent = String(activeEnemies().length).padStart(2,'0');
+      hpFill.style.width = `${player.hp}%`; enemyCount.textContent = String(enemies.length).padStart(2,'0');
       const towed = player.towing; const campDistance = towed ? dist(player, baseFor('蜀')) : 0;
-      growthFill.style.width = `${towed ? Math.max(0, 100 - campDistance / 4) : (markedEnemy ? (markedEnemy.hp / markedEnemy.maxHp) * 100 : 0)}%`; growthReadout.textContent = captureArmed ? '夺取选择：Q 曹仁 · W 夏侯惇 · E 甘宁 · R 孙尚香 · T 吕布' : (towed ? `拖运：${towed.name} · 前往白帝营营心复活` : (markedEnemy ? `${markedEnemy.name} · 攻击 ${player.attackBuff.toFixed(0)}s / 防御 ${player.defenseBuff.toFixed(0)}s` : '正在分配新的攻击目标…'));
+      growthFill.style.width = `${towed ? Math.max(0, 100 - campDistance / 4) : (markedEnemy ? (markedEnemy.hp / markedEnemy.maxHp) * 100 : 0)}%`; growthReadout.textContent = captureArmed ? '拖运选择：点击倒地机甲，或按 Q / W / E / R / T' : (towed ? `拖运：${towed.name} · 前往白帝营营心复活` : (markedEnemy ? `${markedEnemy.name} · 攻击 ${player.attackBuff.toFixed(0)}s / 防御 ${player.defenseBuff.toFixed(0)}s` : '正在分配新的攻击目标…'));
       boostFill.style.width = `${player.boostFuel / 20 * 100}%`; boostReadout.textContent = `推进 ${player.boostFuel.toFixed(1)}s`;
       virtualKeys.forEach(el => { const n=el.dataset.key; el.classList.toggle('active', (n==='2' && player.guard>0) || (n==='5' && keys.has('5') && player.boostFuel>0)); el.classList.toggle('cooldown', ['1','2','3','4'].includes(n) && player.cooldowns[n]>0); });
       modeReadout.textContent = inputMode === 1 ? '当前：键盘控制' : (pointerPause > 0 ? `输入暂停：${Math.ceil(pointerPause)} 秒` : '当前：鼠标 / 手指控制');
@@ -600,7 +628,7 @@
 
     function runCommand(key) {
       if (['1','2','3','4'].includes(key)) action(key);
-      if (key === '6') inputMode === 2 ? releasePlayerTow() : toggleTow();
+      if (key === '6') toggleTow();
       const lower = key.toLowerCase();
       if (captureKeys[lower]) captureByKey(lower);
       if (lower === 'r' && !running) reset();
@@ -609,7 +637,7 @@
       inputMode = mode; keys.clear(); pointerTarget = null; touchPointerId = null; claimedPointerId = null; pointerPause = 0;
       gameFrame.classList.toggle('mode-1', mode === 1); gameFrame.classList.toggle('mode-2', mode === 2);
       modeSwitch.setAttribute('aria-pressed', String(mode === 2));
-      note(mode === 1 ? '<span>模式 1 已启动</span>：请使用键盘控制赵云。' : '<span>模式 2 已启动</span>：移动鼠标或拖动手指控制赵云，点击倒地机甲即可牵引。');
+      note(mode === 1 ? '<span>模式 1 已启动</span>：请使用键盘控制赵云。' : '<span>模式 2 已启动</span>：移动鼠标或拖动手指控制赵云；按 6 后点击倒地机甲即可牵引。');
     }
     function pausePointerFollow() {
       if (inputMode !== 2) { note('当前为模式 1，请拨到模式 2 后再使用 0 暂停输入。'); return; }
@@ -634,7 +662,10 @@
     function canvasPoint(event) { const rect = canvas.getBoundingClientRect(); return { x: (event.clientX - rect.left) * W / rect.width, y: (event.clientY - rect.top) * H / rect.height }; }
     function canvasPointerDown(event) {
       if (!running || inputMode !== 2 || pointerPause > 0) return; const point = canvasPoint(event), unit = downedUnitAt(point); event.preventDefault();
-      if (unit) { claimedPointerId = event.pointerId; canvas.setPointerCapture(event.pointerId); claimDownedUnit(unit); return; }
+      if (unit) {
+        if (!captureArmed) { note('请先按 <span>6</span> 进入拖运，再点击倒地机甲。'); return; }
+        claimedPointerId = event.pointerId; canvas.setPointerCapture(event.pointerId); claimDownedUnit(unit); return;
+      }
       pointerTarget = point;
       if (event.pointerType !== 'mouse') { touchPointerId = event.pointerId; canvas.setPointerCapture(event.pointerId); }
     }
@@ -651,6 +682,7 @@
     canvas.addEventListener('pointerup', canvasPointerUp);
     canvas.addEventListener('pointercancel', canvasPointerUp);
     canvas.addEventListener('pointerleave', event => { if (event.pointerType === 'mouse') pointerTarget = null; });
+    restartIcon.addEventListener('click', reset);
     modeSwitch.addEventListener('click', () => setInputMode(inputMode === 1 ? 2 : 1));
     window.addEventListener('keydown', e => {
       if (e.key === '0' && !e.repeat) { e.preventDefault(); pausePointerFollow(); return; }
