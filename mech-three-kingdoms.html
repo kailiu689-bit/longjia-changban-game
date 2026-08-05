@@ -112,6 +112,22 @@
       cursor: pointer;
     }
     .restart-icon:hover, .restart-icon:focus-visible { color: #fff; border-color: var(--jade); background: rgba(57,216,203,.2); outline: none; }
+    .music-toggle {
+      position: absolute;
+      z-index: 8;
+      top: 118px;
+      right: 23px;
+      width: 34px;
+      height: 34px;
+      border: 1px solid rgba(232,215,173,.28);
+      border-radius: 50%;
+      color: #9eb9b7;
+      background: rgba(8,13,18,.52);
+      font: 700 17px/1 ui-monospace, monospace;
+      cursor: pointer;
+    }
+    .music-toggle:hover, .music-toggle:focus-visible { color: #fff; border-color: var(--jade); background: rgba(57,216,203,.16); outline: none; }
+    .music-toggle.muted { opacity: .42; }
 
     .hud {
       position: absolute;
@@ -278,6 +294,7 @@
       .mouse-controls { right: 8px; bottom: 52px; transform: scale(.72); transform-origin: bottom right; }
       .input-mode { right: 8px; bottom: 149px; transform: scale(.72); transform-origin: bottom right; }
       .restart-icon { top: 57px; right: 14px; transform: scale(.82); transform-origin: top right; }
+      .music-toggle { top: 90px; right: 14px; transform: scale(.82); transform-origin: top right; }
     }
   </style>
 </head>
@@ -294,6 +311,7 @@
     <section class="game-frame mode-1" id="game-frame" aria-label="龙甲三国机甲游戏">
       <canvas id="game" width="1280" height="720"></canvas>
       <button class="restart-icon" id="restart-icon" type="button" aria-label="重新开始战斗" title="重新开始">↻</button>
+      <button class="music-toggle" id="music-toggle" type="button" aria-label="关闭背景音乐" title="背景音乐">♫</button>
       <div class="hud">
         <div class="pilot">
           <div class="pilot-title">蜀 · 赵云「白龙」</div>
@@ -345,12 +363,14 @@
     const resultText = document.getElementById('result-text');
     const gameFrame = document.getElementById('game-frame');
     const restartIcon = document.getElementById('restart-icon');
+    const musicToggle = document.getElementById('music-toggle');
     const modeSwitch = document.getElementById('mode-switch');
     const modeReadout = document.getElementById('mode-readout');
     const virtualKeys = [...document.querySelectorAll('.virtual-key')];
     const keys = new Set();
     let pointerTarget = null, touchPointerId = null, claimedPointerId = null, inputMode = 1, pointerPause = 0;
     let last = performance.now(), running = true, elapsed = 0, flash = 0;
+    let audioContext, musicMaster, musicTimer, musicStep = 0, musicStarted = false, musicEnabled = true;
     const zhaoSprite = new Image();
     zhaoSprite.src = 'assets/mech-three-kingdoms/zhaoyun-silver-rider.png';
     const enemySprites = {};
@@ -394,6 +414,48 @@
     function activeEnemies() { return enemies.filter(enemy => !enemy.downed); }
     function openSpawnPoint() { return spawnPoints.reduce((best, point) => { const gap = Math.min(dist(player, { x: point[0], y: point[1] }), ...activeEnemies().map(e => Math.hypot(e.x - point[0], e.y - point[1]))); return !best || gap > best.gap ? { point, gap } : best; }, null).point; }
     function note(text) { log.innerHTML = text; }
+    const musicPattern = [
+      { bass: 98, notes: [196, 293.66, 392] }, { bass: 87.31, notes: [174.61, 261.63, 349.23] },
+      { bass: 110, notes: [220, 329.63, 440] }, { bass: 98, notes: [196, 293.66, 392] },
+      { bass: 73.42, notes: [146.83, 220, 293.66] }, { bass: 87.31, notes: [174.61, 261.63, 349.23] },
+      { bass: 98, notes: [196, 293.66, 392] }, { bass: 110, notes: [220, 329.63, 440] }
+    ];
+    function playTone(frequency, at, duration, type, volume) {
+      const oscillator = audioContext.createOscillator(), gain = audioContext.createGain();
+      oscillator.type = type; oscillator.frequency.setValueAtTime(frequency, at);
+      gain.gain.setValueAtTime(.0001, at); gain.gain.exponentialRampToValueAtTime(volume, at + .035); gain.gain.exponentialRampToValueAtTime(.0001, at + duration);
+      oscillator.connect(gain).connect(musicMaster); oscillator.start(at); oscillator.stop(at + duration + .06);
+    }
+    function playMusicStep() {
+      if (!musicStarted || !audioContext || audioContext.state !== 'running') return;
+      const part = musicPattern[musicStep % musicPattern.length], at = audioContext.currentTime + .03;
+      playTone(part.bass, at, .34, 'sine', .035);
+      part.notes.forEach((frequency, index) => playTone(frequency, at + index * .07, .78, 'triangle', .015));
+      if (musicStep % 2 === 0) playTone(part.bass * .5, at, .13, 'square', .012);
+      musicStep++;
+    }
+    function syncMusicToggle() {
+      musicToggle.textContent = musicEnabled ? '♫' : '×'; musicToggle.classList.toggle('muted', !musicEnabled);
+      musicToggle.setAttribute('aria-label', musicEnabled ? '关闭背景音乐' : '开启背景音乐'); musicToggle.title = musicEnabled ? '背景音乐：开' : '背景音乐：关';
+    }
+    function startMusic() {
+      if (!musicEnabled) return;
+      const AudioEngine = window.AudioContext || window.webkitAudioContext;
+      if (!AudioEngine) { musicEnabled = false; syncMusicToggle(); return; }
+      if (!audioContext) { audioContext = new AudioEngine(); musicMaster = audioContext.createGain(); musicMaster.gain.value = .82; musicMaster.connect(audioContext.destination); }
+      if (audioContext.state === 'suspended') audioContext.resume();
+      if (musicStarted) return;
+      musicStarted = true; musicStep = 0; playMusicStep(); musicTimer = window.setInterval(playMusicStep, 940);
+    }
+    function toggleMusic() {
+      if (musicEnabled && !musicStarted) {
+        startMusic(); syncMusicToggle(); note('<span>战场配乐已开启</span>：战鼓与五声音阶已接入。'); return;
+      }
+      musicEnabled = !musicEnabled;
+      if (!musicEnabled) { window.clearInterval(musicTimer); musicTimer = null; musicStarted = false; }
+      else startMusic();
+      syncMusicToggle(); note(musicEnabled ? '<span>战场配乐已开启</span>：战鼓与五声音阶已接入。' : '战场配乐已关闭。');
+    }
     function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
     function baseFor(faction) { return bases.find(base => base.faction === (faction === '群' ? '魏' : faction)); }
     function nearestEnemy() { return markedEnemy && !markedEnemy.downed ? markedEnemy : activeEnemies().reduce((best, e) => !best || dist(player, e) < dist(player, best) ? e : best, null); }
@@ -645,6 +707,7 @@
     }
     function startVirtualKey(event) {
       const key = event.currentTarget.dataset.key; event.preventDefault();
+      startMusic();
       if (inputMode !== 2) { note('当前为模式 1，请拨到模式 2 后使用圆形按键。'); return; }
       if (key === '5') {
         event.currentTarget.setPointerCapture(event.pointerId); keys.add(key);
@@ -661,6 +724,7 @@
     });
     function canvasPoint(event) { const rect = canvas.getBoundingClientRect(); return { x: (event.clientX - rect.left) * W / rect.width, y: (event.clientY - rect.top) * H / rect.height }; }
     function canvasPointerDown(event) {
+      startMusic();
       if (!running || inputMode !== 2 || pointerPause > 0) return; const point = canvasPoint(event), unit = downedUnitAt(point); event.preventDefault();
       if (unit) {
         if (!captureArmed) { note('请先按 <span>6</span> 进入拖运，再点击倒地机甲。'); return; }
@@ -682,9 +746,11 @@
     canvas.addEventListener('pointerup', canvasPointerUp);
     canvas.addEventListener('pointercancel', canvasPointerUp);
     canvas.addEventListener('pointerleave', event => { if (event.pointerType === 'mouse') pointerTarget = null; });
-    restartIcon.addEventListener('click', reset);
-    modeSwitch.addEventListener('click', () => setInputMode(inputMode === 1 ? 2 : 1));
+    restartIcon.addEventListener('click', () => { startMusic(); reset(); });
+    musicToggle.addEventListener('click', toggleMusic);
+    modeSwitch.addEventListener('click', () => { startMusic(); setInputMode(inputMode === 1 ? 2 : 1); });
     window.addEventListener('keydown', e => {
+      startMusic();
       if (e.key === '0' && !e.repeat) { e.preventDefault(); pausePointerFollow(); return; }
       if (inputMode !== 1) return;
       if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','1','2','3','4','5','6','q','Q','w','W','e','E','r','R','t','T'].includes(e.key)) e.preventDefault();
@@ -693,7 +759,7 @@
     });
     window.addEventListener('keyup', e => { if (inputMode === 1) keys.delete(e.key); });
     window.addEventListener('blur', () => { keys.clear(); pointerTarget = null; touchPointerId = null; claimedPointerId = null; });
-    reset(); requestAnimationFrame(loop);
+    syncMusicToggle(); reset(); requestAnimationFrame(loop);
   </script>
 </body>
 </html>
