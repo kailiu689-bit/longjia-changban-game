@@ -310,6 +310,7 @@
 
     <section class="game-frame mode-1" id="game-frame" aria-label="龙甲三国机甲游戏">
       <canvas id="game" width="1280" height="720"></canvas>
+      <audio id="battle-music" preload="auto" loop><source src="assets/mech-three-kingdoms/battle-theme.m4a" type="audio/mp4"></audio>
       <button class="restart-icon" id="restart-icon" type="button" aria-label="重新开始战斗" title="重新开始">↻</button>
       <button class="music-toggle" id="music-toggle" type="button" aria-label="关闭背景音乐" title="背景音乐">♫</button>
       <div class="hud">
@@ -363,6 +364,7 @@
     const resultText = document.getElementById('result-text');
     const gameFrame = document.getElementById('game-frame');
     const restartIcon = document.getElementById('restart-icon');
+    const battleMusic = document.getElementById('battle-music');
     const musicToggle = document.getElementById('music-toggle');
     const modeSwitch = document.getElementById('mode-switch');
     const modeReadout = document.getElementById('mode-readout');
@@ -370,7 +372,7 @@
     const keys = new Set();
     let pointerTarget = null, touchPointerId = null, claimedPointerId = null, inputMode = 1, pointerPause = 0;
     let last = performance.now(), running = true, elapsed = 0, flash = 0;
-    let audioContext, musicMaster, musicTimer, musicStep = 0, musicStarted = false, musicEnabled = true;
+    let musicEnabled = true, musicStarted = false;
     const zhaoSprite = new Image();
     zhaoSprite.src = 'assets/mech-three-kingdoms/zhaoyun-silver-rider.png';
     const enemySprites = {};
@@ -408,51 +410,34 @@
       enemies = templates.map((t, i) => makeEnemy(t, ...spawnPoints[i]));
       allies = []; pickups = []; projectiles = []; effects = []; messages = []; reinforcements = { 魏: 0, 吴: 0 }; defeated = 0; captureArmed = false; markedEnemy = enemies[Math.floor(Math.random() * enemies.length)];
       bases.forEach(base => { base.hp = base.maxHp; base.timer = 0; base.destroyed = false; });
-      running = true; result.classList.remove('show'); note('红色光标锁定攻击目标。按 6 后选择倒地机甲，拖回白帝营满血复活。');
+      running = true; result.classList.remove('show'); startMusic(); note('红色光标锁定攻击目标。按 6 后选择倒地机甲，拖回白帝营满血复活。');
     }
     function makeEnemy(t, x = 900, y = 260) { return { ...t, x, y, r: t.elite ? 38 : 31, hp: 100, maxHp: 100, timer: 1 + Math.random(), hit: 0, downed: false, towing: null, carrier: null, conversion: 0, unattended: 0 }; }
     function activeEnemies() { return enemies.filter(enemy => !enemy.downed); }
     function openSpawnPoint() { return spawnPoints.reduce((best, point) => { const gap = Math.min(dist(player, { x: point[0], y: point[1] }), ...activeEnemies().map(e => Math.hypot(e.x - point[0], e.y - point[1]))); return !best || gap > best.gap ? { point, gap } : best; }, null).point; }
     function note(text) { log.innerHTML = text; }
-    const musicPattern = [
-      { bass: 98, notes: [196, 293.66, 392] }, { bass: 87.31, notes: [174.61, 261.63, 349.23] },
-      { bass: 110, notes: [220, 329.63, 440] }, { bass: 98, notes: [196, 293.66, 392] },
-      { bass: 73.42, notes: [146.83, 220, 293.66] }, { bass: 87.31, notes: [174.61, 261.63, 349.23] },
-      { bass: 98, notes: [196, 293.66, 392] }, { bass: 110, notes: [220, 329.63, 440] }
-    ];
-    function playTone(frequency, at, duration, type, volume) {
-      const oscillator = audioContext.createOscillator(), gain = audioContext.createGain();
-      oscillator.type = type; oscillator.frequency.setValueAtTime(frequency, at);
-      gain.gain.setValueAtTime(.0001, at); gain.gain.exponentialRampToValueAtTime(volume, at + .035); gain.gain.exponentialRampToValueAtTime(.0001, at + duration);
-      oscillator.connect(gain).connect(musicMaster); oscillator.start(at); oscillator.stop(at + duration + .06);
-    }
-    function playMusicStep() {
-      if (!musicStarted || !audioContext || audioContext.state !== 'running') return;
-      const part = musicPattern[musicStep % musicPattern.length], at = audioContext.currentTime + .03;
-      playTone(part.bass, at, .34, 'sine', .035);
-      part.notes.forEach((frequency, index) => playTone(frequency, at + index * .07, .78, 'triangle', .015));
-      if (musicStep % 2 === 0) playTone(part.bass * .5, at, .13, 'square', .012);
-      musicStep++;
-    }
     function syncMusicToggle() {
       musicToggle.textContent = musicEnabled ? '♫' : '×'; musicToggle.classList.toggle('muted', !musicEnabled);
       musicToggle.setAttribute('aria-label', musicEnabled ? '关闭背景音乐' : '开启背景音乐'); musicToggle.title = musicEnabled ? '背景音乐：开' : '背景音乐：关';
     }
+    function sendNativeMusic(command) {
+      const bridge = window.webkit?.messageHandlers?.music;
+      if (!bridge) return false;
+      bridge.postMessage(command); return true;
+    }
     function startMusic() {
       if (!musicEnabled) return;
-      const AudioEngine = window.AudioContext || window.webkitAudioContext;
-      if (!AudioEngine) { musicEnabled = false; syncMusicToggle(); return; }
-      if (!audioContext) { audioContext = new AudioEngine(); musicMaster = audioContext.createGain(); musicMaster.gain.value = .82; musicMaster.connect(audioContext.destination); }
-      if (audioContext.state === 'suspended') audioContext.resume();
-      if (musicStarted) return;
-      musicStarted = true; musicStep = 0; playMusicStep(); musicTimer = window.setInterval(playMusicStep, 940);
+      if (sendNativeMusic('play')) { musicStarted = true; return; }
+      if (!battleMusic.paused) { musicStarted = true; return; }
+      battleMusic.volume = .48;
+      battleMusic.play().then(() => { musicStarted = true; }).catch(() => {});
     }
     function toggleMusic() {
       if (musicEnabled && !musicStarted) {
         startMusic(); syncMusicToggle(); note('<span>战场配乐已开启</span>：战鼓与五声音阶已接入。'); return;
       }
       musicEnabled = !musicEnabled;
-      if (!musicEnabled) { window.clearInterval(musicTimer); musicTimer = null; musicStarted = false; }
+      if (!musicEnabled) { sendNativeMusic('pause') || battleMusic.pause(); musicStarted = false; }
       else startMusic();
       syncMusicToggle(); note(musicEnabled ? '<span>战场配乐已开启</span>：战鼓与五声音阶已接入。' : '战场配乐已关闭。');
     }

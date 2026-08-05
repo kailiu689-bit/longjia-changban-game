@@ -8,7 +8,7 @@ RESOURCES="$CONTENTS/Resources"
 
 rm -rf "$CONTENTS/_CodeSignature"
 mkdir -p "$CONTENTS/MacOS" "$RESOURCES/assets/mech-three-kingdoms"
-swiftc "$ROOT/macos-app/main.swift" -framework Cocoa -framework WebKit -o "$CONTENTS/MacOS/LongjiaChangban"
+swiftc "$ROOT/macos-app/main.swift" -framework Cocoa -framework AVFoundation -framework WebKit -o "$CONTENTS/MacOS/LongjiaChangban"
 cp "$ROOT/macos-app/Info.plist" "$CONTENTS/Info.plist"
 cp "$ROOT/macos-app/AppIcon.icns" "$RESOURCES/AppIcon.icns"
 cp "$ROOT/mech-three-kingdoms.html" "$RESOURCES/mech-three-kingdoms.html"
