@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>龙甲：三国战域</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;600;700;900&display=swap');
@@ -20,6 +20,8 @@
       margin: 0;
       min-height: 100vh;
       overflow-x: hidden;
+      overscroll-behavior: none;
+      -webkit-text-size-adjust: 100%;
       color: var(--paper);
       background: #090d12;
       font-family: "Noto Serif SC", "Songti SC", serif;
@@ -74,6 +76,7 @@
     }
 
     .game-frame {
+      --action-size: clamp(54px, 5vw, 66px);
       position: relative;
       overflow: hidden;
       border: 1px solid rgba(232,215,173,.42);
@@ -94,7 +97,7 @@
     }
     .game-frame::before { left: 9px; top: 9px; border-width: 1px 0 0 1px; }
     .game-frame::after { right: 9px; bottom: 9px; border-width: 0 1px 1px 0; }
-    canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #101920; cursor: crosshair; touch-action: none; }
+    canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #101920; cursor: crosshair; touch-action: none; user-select: none; -webkit-user-select: none; }
     .game-frame.mode-1 canvas { cursor: default; }
     .restart-icon {
       position: absolute;
@@ -229,10 +232,10 @@
       touch-action: none;
     }
     .mouse-controls-label { margin-bottom: 7px; color: #99aaa9; font: 700 9px ui-monospace, monospace; letter-spacing: .12em; text-align: center; }
-    .virtual-actions { display: grid; grid-template-columns: repeat(6, 66px); gap: 7px; }
+    .virtual-actions { display: grid; grid-template-columns: repeat(6, var(--action-size)); gap: clamp(5px, .65vw, 8px); justify-content: center; }
     .virtual-key {
-      width: 66px;
-      height: 66px;
+      width: var(--action-size);
+      height: var(--action-size);
       padding: 4px;
       border: 2px solid rgba(232,215,173,.42);
       border-radius: 50%;
@@ -240,9 +243,14 @@
       background: radial-gradient(circle at 35% 28%, rgba(255,255,255,.16), rgba(255,255,255,.035) 58%, rgba(0,0,0,.25));
       font: 900 21px/1 ui-monospace, monospace;
       cursor: pointer;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
     .virtual-key small { display: block; margin-top: 4px; color: #aabdbb; font: 10px/1 "Noto Serif SC", serif; }
-    .virtual-key:hover, .virtual-key:active { border-color: var(--jade); color: #fff; background: rgba(57,216,203,.2); box-shadow: 0 0 13px rgba(57,216,203,.24); }
+    .virtual-key:hover, .virtual-key:active, .virtual-key:focus-visible { border-color: var(--jade); color: #fff; background: rgba(57,216,203,.2); box-shadow: 0 0 13px rgba(57,216,203,.24); outline: none; }
+    .virtual-key:active { transform: scale(.95); }
     .virtual-key.active { border-color: var(--jade); color: #fff; background: rgba(57,216,203,.24); box-shadow: 0 0 18px rgba(57,216,203,.32); }
     .virtual-key.cooldown { opacity: .46; }
     .game-frame.mode-1 .mouse-controls { opacity: .38; filter: grayscale(1); pointer-events: none; }
@@ -282,19 +290,104 @@
     .skill.cooldown { opacity: .46; }
     footer { margin-top: 11px; color: #687579; text-align: right; font-size: 10px; letter-spacing: .1em; }
 
-    @media (max-width: 680px) {
-      .page { padding-top: 14px; }
+    @media (max-width: 960px) {
+      .page { padding: 14px max(10px, env(safe-area-inset-right)) 20px max(10px, env(safe-area-inset-left)); }
       header { align-items: start; }
       .mission { display: none; }
+      .game-frame { --control-dock-height: clamp(108px, 18vw, 138px); --action-size: clamp(48px, 8.2vw, 64px); padding-bottom: var(--control-dock-height); }
       .hud { top: 11px; left: 13px; right: 13px; }
       .pilot, .score { padding: 5px 7px; }
       .pilot-sub { display: none; }
       .bar { margin-top: 4px; width: 120px; height: 6px; }
       .controls { grid-template-columns: 1fr; }
-      .mouse-controls { right: 8px; bottom: 52px; transform: scale(.72); transform-origin: bottom right; }
-      .input-mode { right: 8px; bottom: 149px; transform: scale(.72); transform-origin: bottom right; }
-      .restart-icon { top: 57px; right: 14px; transform: scale(.82); transform-origin: top right; }
-      .music-toggle { top: 90px; right: 14px; transform: scale(.82); transform-origin: top right; }
+      .mouse-controls {
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: var(--control-dock-height);
+        padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+        border-width: 1px 0 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      .mouse-controls-label { margin-bottom: 6px; }
+      .input-mode { right: 10px; bottom: calc(var(--control-dock-height) + 9px); }
+      .event-log { left: 13px; bottom: calc(var(--control-dock-height) + 12px); width: 52%; }
+      .restart-icon { top: 57px; right: 14px; width: 32px; height: 32px; }
+      .music-toggle { top: 96px; right: 14px; width: 32px; height: 32px; }
+    }
+
+    @media (max-width: 560px) {
+      .page { padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+      header { margin-bottom: 9px; }
+      .eyebrow { font-size: 8px; letter-spacing: .12em; }
+      h1 { font-size: clamp(28px, 10vw, 38px); }
+      .game-frame { --control-dock-height: 176px; --action-size: clamp(52px, 16vw, 64px); }
+      .virtual-actions { grid-template-columns: repeat(3, var(--action-size)); gap: 7px 13px; }
+      .mouse-controls { padding-top: 7px; }
+      .pilot-title { font-size: 11px; letter-spacing: .06em; }
+      .score-label { font-size: 8px; }
+      #enemy-count { font-size: 17px; }
+      .pilot .bar { width: 94px; }
+      .growth-status {
+        top: auto;
+        left: 8px;
+        bottom: calc(var(--control-dock-height) + 8px);
+        width: 158px;
+        min-width: 0;
+        padding: 4px 6px;
+        transform: none;
+      }
+      .growth-status .growth-label { display: none; }
+      .growth-status .bar { width: 100%; height: 5px; margin-top: 0; }
+      #growth-readout, #boost-readout { font-size: 7px; }
+      .boost-line { margin-top: 3px; }
+      .boost-line .bar { width: 48px; }
+      .input-mode { right: 8px; bottom: calc(var(--control-dock-height) + 8px); grid-template-columns: auto 48px auto; padding: 4px 5px 3px; font-size: 7px; }
+      .mode-readout { font-size: 7px; }
+      .event-log { display: none; }
+      .restart-icon { top: 44px; right: 8px; width: 29px; height: 29px; font-size: 18px; }
+      .music-toggle { top: 79px; right: 8px; width: 29px; height: 29px; font-size: 14px; }
+      .controls { margin-top: 10px; }
+      .control-note { font-size: 11px; line-height: 1.65; }
+      footer { display: none; }
+    }
+
+    @media (any-pointer: coarse) and (orientation: landscape) and (max-height: 600px) {
+      body { overflow: hidden; }
+      .page { width: 100vw; height: 100dvh; padding: 0; display: grid; place-items: center; }
+      header, .controls, footer { display: none; }
+      .game-frame {
+        --action-size: clamp(46px, 12dvh, 58px);
+        --control-dock-height: 0px;
+        width: min(100vw, calc(100dvh * 16 / 9));
+        height: min(100dvh, calc(100vw * 9 / 16));
+        padding: 0;
+      }
+      canvas { width: 100%; height: 100%; aspect-ratio: auto; }
+      .mouse-controls {
+        left: auto;
+        right: max(8px, env(safe-area-inset-right));
+        bottom: max(8px, env(safe-area-inset-bottom));
+        width: auto;
+        height: auto;
+        padding: 7px 9px 9px;
+        border-width: 1px;
+      }
+      .virtual-actions { grid-template-columns: repeat(3, var(--action-size)); gap: 6px; }
+      .mouse-controls-label { margin-bottom: 5px; font-size: 8px; }
+      .input-mode { right: max(8px, env(safe-area-inset-right)); bottom: calc(max(8px, env(safe-area-inset-bottom)) + var(--action-size) + var(--action-size) + 48px); }
+      .event-log { display: block; left: max(12px, env(safe-area-inset-left)); bottom: 13px; width: 48%; }
+      .growth-status { top: 10px; bottom: auto; left: 50%; width: auto; min-width: 174px; padding: 6px 9px; transform: translateX(-50%); }
+      .growth-status .growth-label { display: block; }
+      .growth-status .bar { width: 146px; height: 6px; margin-top: 4px; }
+      #growth-readout, #boost-readout { font-size: 8px; }
+      .boost-line { margin-top: 4px; }
+      .boost-line .bar { width: 58px; }
+      .hud { top: max(8px, env(safe-area-inset-top)); left: max(11px, env(safe-area-inset-left)); right: max(11px, env(safe-area-inset-right)); }
+      .restart-icon { top: 58px; right: max(12px, env(safe-area-inset-right)); }
+      .music-toggle { top: 96px; right: max(12px, env(safe-area-inset-right)); }
     }
   </style>
 </head>
@@ -327,7 +420,7 @@
         <span>模式 1 · 键盘</span><button class="mode-switch" id="mode-switch" type="button" aria-label="切换输入模式" aria-pressed="false"><span></span></button><span>模式 2 · 触控</span>
         <div class="mode-readout" id="mode-readout">当前：键盘控制</div>
       </div>
-      <div class="mouse-controls" aria-label="鼠标操作控制台">
+      <div class="mouse-controls" aria-label="鼠标和触控操作控制台">
         <div class="mouse-controls-label">六键战术面板</div>
         <div class="virtual-actions">
           <button class="virtual-key" data-key="1">1<small>突击</small></button><button class="virtual-key" data-key="2">2<small>防御</small></button><button class="virtual-key" data-key="3">3<small>拔剑</small></button><button class="virtual-key" data-key="4">4<small>射箭</small></button><button class="virtual-key" data-key="5">5<small>加速</small></button><button class="virtual-key" data-key="6">6<small>拖运</small></button>
@@ -343,7 +436,7 @@
     </section>
 
     <section class="controls" aria-label="操作说明">
-      <div class="control-note"><strong>驾驶操作</strong><br>拨动战场右下角的模式开关：<strong>模式 1</strong> 仅用键盘 <strong>↑ ↓ ← →、1–6、Q W E R T</strong>；<strong>模式 2</strong> 用鼠标/手指和六个圆形按键操作。按 <strong>6</strong> 后，点击任意倒地机甲即可拖运；键盘可用 <strong>Q W E R T</strong> 选择同型号机甲。模式 2 下按 <strong>0</strong>，赵云会暂停跟随鼠标或手指 <strong>5 秒</strong>。</div>
+      <div class="control-note"><strong>驾驶操作</strong><br>电脑默认使用 <strong>模式 1</strong>：键盘 <strong>↑ ↓ ← →、1–6、Q W E R T</strong>；手机和 iPad 默认使用 <strong>模式 2</strong>：手指拖动赵云，并点击六个圆形按键。按 <strong>6</strong> 后，点击任意倒地机甲即可拖运；键盘可用 <strong>Q W E R T</strong> 选择同型号机甲。模式 2 下按 <strong>0</strong>，赵云会暂停跟随鼠标或手指 <strong>5 秒</strong>。手机横屏体验最佳。</div>
     </section>
     <footer>战斗记录自动同步 · 玄甲司机巧局</footer>
   </main>
@@ -370,7 +463,8 @@
     const modeReadout = document.getElementById('mode-readout');
     const virtualKeys = [...document.querySelectorAll('.virtual-key')];
     const keys = new Set();
-    let pointerTarget = null, touchPointerId = null, claimedPointerId = null, inputMode = 1, pointerPause = 0;
+    const touchFirst = navigator.maxTouchPoints > 0 || window.matchMedia('(any-pointer: coarse)').matches || window.innerWidth <= 960;
+    let pointerTarget = null, touchPointerId = null, claimedPointerId = null, inputMode = touchFirst ? 2 : 1, pointerPause = 0;
     let last = performance.now(), running = true, elapsed = 0, flash = 0;
     let musicEnabled = true, musicStarted = false;
     const zhaoSprite = new Image();
@@ -744,7 +838,7 @@
     });
     window.addEventListener('keyup', e => { if (inputMode === 1) keys.delete(e.key); });
     window.addEventListener('blur', () => { keys.clear(); pointerTarget = null; touchPointerId = null; claimedPointerId = null; });
-    syncMusicToggle(); reset(); requestAnimationFrame(loop);
+    syncMusicToggle(); setInputMode(touchFirst ? 2 : 1); reset(); requestAnimationFrame(loop);
   </script>
 </body>
 </html>
